@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Image, Dimensions, Pressable } from "react-native";
+import { View, StyleSheet, Image, Dimensions, Pressable, ImageSourcePropType } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,7 +12,6 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 
 import { ThemedText } from "@/components/ThemedText";
 import { GameColors, Spacing, BorderRadius } from "@/constants/theme";
@@ -21,12 +20,11 @@ import {
   BuildingType, 
   BUILDING_DEFINITIONS, 
   BUILDING_TYPES,
-  BUILDING_MAX_SLOTS,
 } from "@/constants/gameData";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLANET_SIZE = SCREEN_WIDTH * 0.85;
-const FIELD_SIZE = 44;
+const FIELD_SIZE = 52;
 
 interface Building {
   id: string;
@@ -57,11 +55,11 @@ interface ZoomedOutPlanetProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const BUILDING_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  [BUILDING_TYPES.METAL_MINE]: "box",
-  [BUILDING_TYPES.CRYSTAL_REFINERY]: "hexagon",
-  [BUILDING_TYPES.OXYGEN_PROCESSOR]: "wind",
-  [BUILDING_TYPES.ENERGY_PLANT]: "zap",
+const FIELD_IMAGES: Record<string, ImageSourcePropType> = {
+  [BUILDING_TYPES.METAL_MINE]: require("../../assets/images/field-metal.png"),
+  [BUILDING_TYPES.CRYSTAL_REFINERY]: require("../../assets/images/field-crystal.png"),
+  [BUILDING_TYPES.OXYGEN_PROCESSOR]: require("../../assets/images/field-oxygen.png"),
+  [BUILDING_TYPES.ENERGY_PLANT]: require("../../assets/images/field-energy.png"),
 };
 
 const BUILDING_COLORS: Record<string, string> = {
@@ -76,6 +74,7 @@ interface FieldPosition {
   y: number;
   buildingType: BuildingType;
   slotIndex: number;
+  rotation: number;
 }
 
 function getFieldPositions(): FieldPosition[] {
@@ -83,47 +82,55 @@ function getFieldPositions(): FieldPosition[] {
   const centerY = PLANET_SIZE / 2;
   const positions: FieldPosition[] = [];
   
-  const metalAngles = [-150, -130, -110, -90];
+  const metalAngles = [-155, -130, -105, -80];
   metalAngles.forEach((angle, i) => {
-    const radius = PLANET_SIZE * 0.38;
+    const radius = PLANET_SIZE * 0.40;
+    const randomOffset = (i % 2 === 0 ? -8 : 8) + Math.random() * 4;
     positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
+      x: centerX + Math.cos((angle * Math.PI) / 180) * radius + randomOffset,
+      y: centerY + Math.sin((angle * Math.PI) / 180) * radius + randomOffset,
       buildingType: BUILDING_TYPES.METAL_MINE,
       slotIndex: i,
+      rotation: (i * 15) - 30,
     });
   });
   
-  const crystalAngles = [-70, -50, -30, -10];
+  const crystalAngles = [-55, -30, -5, 20];
   crystalAngles.forEach((angle, i) => {
-    const radius = PLANET_SIZE * 0.38;
+    const radius = PLANET_SIZE * 0.40;
+    const randomOffset = (i % 2 === 0 ? 6 : -6) + Math.random() * 4;
     positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
+      x: centerX + Math.cos((angle * Math.PI) / 180) * radius + randomOffset,
+      y: centerY + Math.sin((angle * Math.PI) / 180) * radius + randomOffset,
       buildingType: BUILDING_TYPES.CRYSTAL_REFINERY,
       slotIndex: i,
+      rotation: (i * 20) - 40,
     });
   });
   
-  const oxygenAngles = [10, 30, 50, 70, 90, 110];
+  const oxygenAngles = [45, 70, 95, 120, 145, 170];
   oxygenAngles.forEach((angle, i) => {
-    const radius = PLANET_SIZE * 0.38;
+    const radius = PLANET_SIZE * 0.40;
+    const randomOffset = (i % 2 === 0 ? -5 : 5) + Math.random() * 3;
     positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
+      x: centerX + Math.cos((angle * Math.PI) / 180) * radius + randomOffset,
+      y: centerY + Math.sin((angle * Math.PI) / 180) * radius + randomOffset,
       buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR,
       slotIndex: i,
+      rotation: (i * 12) - 30,
     });
   });
   
-  const energyAngles = [130, 150, 170, 190];
+  const energyAngles = [195, 220, 245, 270];
   energyAngles.forEach((angle, i) => {
-    const radius = PLANET_SIZE * 0.38;
+    const radius = PLANET_SIZE * 0.40;
+    const randomOffset = (i % 2 === 0 ? 7 : -7) + Math.random() * 4;
     positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
+      x: centerX + Math.cos((angle * Math.PI) / 180) * radius + randomOffset,
+      y: centerY + Math.sin((angle * Math.PI) / 180) * radius + randomOffset,
       buildingType: BUILDING_TYPES.ENERGY_PLANT,
       slotIndex: i,
+      rotation: (i * 18) - 36,
     });
   });
   
@@ -139,30 +146,47 @@ interface ResourceFieldProps {
 function ResourceField({ position, building, onPress }: ResourceFieldProps) {
   const pulseAnim = useSharedValue(1);
   const glowAnim = useSharedValue(0.2);
+  const floatAnim = useSharedValue(0);
   
   const isEmpty = !building;
   const canUpgrade = building && !building.isConstructing;
   const color = BUILDING_COLORS[position.buildingType];
-  const icon = BUILDING_ICONS[position.buildingType];
+  const fieldImage = FIELD_IMAGES[position.buildingType];
   
   useEffect(() => {
+    floatAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2000 + Math.random() * 500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 2000 + Math.random() * 500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    
     if (canUpgrade) {
       pulseAnim.value = withRepeat(
-        withTiming(1.1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.08, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
       glowAnim.value = withRepeat(
-        withTiming(0.6, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.7, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
     }
   }, [canUpgrade]);
   
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseAnim.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(floatAnim.value, [0, 1], [0, -4]);
+    return {
+      transform: [
+        { translateY },
+        { scale: pulseAnim.value },
+        { rotate: `${position.rotation}deg` },
+      ],
+    };
+  });
   
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowAnim.value,
@@ -189,23 +213,27 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
       <Animated.View style={[styles.fieldInner, animatedStyle]}>
         {isEmpty ? (
           <View style={[styles.emptyField, { borderColor: color }]}>
-            <Feather name="plus" size={16} color={color} />
+            <Image source={fieldImage} style={styles.emptyFieldImage} resizeMode="contain" />
+            <View style={styles.emptyOverlay}>
+              <Feather name="plus" size={18} color="#FFFFFF" />
+            </View>
           </View>
         ) : (
-          <LinearGradient
-            colors={[color, `${color}99`]}
-            style={styles.fieldGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Feather name={icon} size={16} color="#FFFFFF" />
+          <View style={styles.builtField}>
+            <Image source={fieldImage} style={styles.fieldImage} resizeMode="cover" />
             <View style={styles.levelBadge}>
               <ThemedText style={styles.levelText}>{building.level}</ThemedText>
             </View>
             {building.isConstructing ? (
-              <View style={styles.constructingDot} />
-            ) : null}
-          </LinearGradient>
+              <View style={styles.constructingIndicator}>
+                <Feather name="loader" size={10} color="#FFF" />
+              </View>
+            ) : (
+              <View style={[styles.upgradeIndicator, { backgroundColor: color }]}>
+                <Feather name="arrow-up" size={10} color="#FFF" />
+              </View>
+            )}
+          </View>
         )}
       </Animated.View>
     </Pressable>
@@ -217,16 +245,14 @@ function ResourceSummary({
   rate, 
   color, 
   label,
-  style,
 }: { 
-  icon: any; 
+  icon: ImageSourcePropType; 
   rate: number; 
   color: string; 
   label: string;
-  style?: any;
 }) {
   return (
-    <View style={[styles.resourceSummary, style]}>
+    <View style={styles.resourceSummary}>
       <View style={[styles.resourceSummaryIcon, { borderColor: color }]}>
         <Image source={icon} style={styles.resourceSummaryImage} resizeMode="contain" />
       </View>
@@ -246,12 +272,12 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
 
   useEffect(() => {
     rotation.value = withRepeat(
-      withTiming(360, { duration: 90000, easing: Easing.linear }),
+      withTiming(360, { duration: 120000, easing: Easing.linear }),
       -1,
       false
     );
     planetPulse.value = withRepeat(
-      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
       -1,
       true
     );
@@ -270,11 +296,11 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
   }));
 
   const planetStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(planetPulse.value, [0, 1], [1, 1.02]) }],
+    transform: [{ scale: interpolate(planetPulse.value, [0, 1], [1, 1.015]) }],
   }));
 
   const cityGlowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(cityGlow.value, [0.5, 1], [0.4, 0.8]),
+    opacity: interpolate(cityGlow.value, [0.5, 1], [0.3, 0.6]),
     transform: [{ scale: interpolate(cityGlow.value, [0.5, 1], [1, 1.1]) }],
   }));
 
@@ -306,55 +332,6 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.orbitRing, rotationStyle]}>
-        <View style={styles.orbitDot} />
-      </Animated.View>
-      
-      <Animated.View style={[styles.planetWrapper, planetStyle]}>
-        <Image
-          source={require("../../assets/images/planet-surface-layer.png")}
-          style={styles.planetImage}
-          resizeMode="contain"
-        />
-      </Animated.View>
-
-      {fieldPositions.map((pos, index) => {
-        const building = resourceBuildings.find(
-          b => b.buildingType === pos.buildingType && b.slotIndex === pos.slotIndex
-        );
-        return (
-          <ResourceField
-            key={`${pos.buildingType}-${pos.slotIndex}`}
-            position={pos}
-            building={building}
-            onPress={() => onFieldPress(pos.buildingType, pos.slotIndex, building)}
-          />
-        );
-      })}
-
-      <Animated.View style={[styles.cityGlow, cityGlowStyle]} />
-      
-      <AnimatedPressable 
-        style={[styles.cityButton, cityButtonStyle]}
-        onPress={onCityPress}
-        onPressIn={handleCityPressIn}
-        onPressOut={handleCityPressOut}
-        testID="city-center-button"
-      >
-        <View style={styles.cityInner}>
-          <Animated.View style={[styles.cityPulseRing]} />
-          <View style={styles.cityCore}>
-            <Feather name="home" size={24} color={GameColors.primary} />
-          </View>
-          <View style={styles.cityLabel}>
-            <ThemedText style={styles.cityLabelText}>CITY CENTER</ThemedText>
-            <ThemedText style={styles.buildingCountText}>
-              {facilityCount} {facilityCount === 1 ? "facility" : "facilities"}
-            </ThemedText>
-          </View>
-        </View>
-      </AnimatedPressable>
-
       <View style={styles.resourceSummaryContainer}>
         <ResourceSummary
           icon={require("../../assets/images/resource-metal.png")}
@@ -376,6 +353,58 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
         />
       </View>
 
+      <View style={styles.planetArea}>
+        <Animated.View style={[styles.orbitRing, rotationStyle]}>
+          <View style={styles.orbitDot} />
+        </Animated.View>
+        
+        <Animated.View style={[styles.planetWrapper, planetStyle]}>
+          <Image
+            source={require("../../assets/images/planet-surface-layer.png")}
+            style={styles.planetImage}
+            resizeMode="cover"
+          />
+          <View style={styles.planetAtmosphere} />
+        </Animated.View>
+
+        {fieldPositions.map((pos) => {
+          const building = resourceBuildings.find(
+            b => b.buildingType === pos.buildingType && b.slotIndex === pos.slotIndex
+          );
+          return (
+            <ResourceField
+              key={`${pos.buildingType}-${pos.slotIndex}`}
+              position={pos}
+              building={building}
+              onPress={() => onFieldPress(pos.buildingType, pos.slotIndex, building)}
+            />
+          );
+        })}
+
+        <Animated.View style={[styles.cityGlow, cityGlowStyle]} />
+        
+        <AnimatedPressable 
+          style={[styles.cityButton, cityButtonStyle]}
+          onPress={onCityPress}
+          onPressIn={handleCityPressIn}
+          onPressOut={handleCityPressOut}
+          testID="city-center-button"
+        >
+          <View style={styles.cityInner}>
+            <Animated.View style={styles.cityPulseRing} />
+            <View style={styles.cityCore}>
+              <Feather name="home" size={22} color={GameColors.primary} />
+            </View>
+            <View style={styles.cityLabel}>
+              <ThemedText style={styles.cityLabelText}>CITY CENTER</ThemedText>
+              <ThemedText style={styles.buildingCountText}>
+                {facilityCount} {facilityCount === 1 ? "facility" : "facilities"}
+              </ThemedText>
+            </View>
+          </View>
+        </AnimatedPressable>
+      </View>
+
       <View style={styles.legend}>
         {Object.entries(BUILDING_COLORS).map(([type, color]) => (
           <View key={type} style={styles.legendItem}>
@@ -393,162 +422,13 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
 const styles = StyleSheet.create({
   container: {
     width: PLANET_SIZE,
-    height: PLANET_SIZE + 120,
     alignItems: "center",
-    justifyContent: "center",
-  },
-  orbitRing: {
-    position: "absolute",
-    width: PLANET_SIZE * 0.85,
-    height: PLANET_SIZE * 0.85,
-    borderRadius: PLANET_SIZE * 0.425,
-    borderWidth: 1,
-    borderColor: "rgba(10, 132, 255, 0.15)",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    top: 60,
-  },
-  orbitDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: GameColors.primary,
-    marginTop: -2,
-  },
-  planetWrapper: {
-    width: PLANET_SIZE * 0.65,
-    height: PLANET_SIZE * 0.65,
-    borderRadius: PLANET_SIZE * 0.325,
-    overflow: "hidden",
-    position: "absolute",
-    top: PLANET_SIZE * 0.175 + 30,
-  },
-  planetImage: {
-    width: "100%",
-    height: "100%",
-  },
-  fieldContainer: {
-    position: "absolute",
-    width: FIELD_SIZE,
-    height: FIELD_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 30,
-  },
-  fieldGlow: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: FIELD_SIZE / 2,
-    transform: [{ scale: 1.3 }],
-  },
-  fieldInner: {
-    width: FIELD_SIZE,
-    height: FIELD_SIZE,
-    borderRadius: BorderRadius.sm,
-    overflow: "hidden",
-  },
-  emptyField: {
-    flex: 1,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderRadius: BorderRadius.sm,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fieldGradient: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: BorderRadius.sm,
-  },
-  levelBadge: {
-    position: "absolute",
-    bottom: 1,
-    right: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  levelText: {
-    fontSize: 8,
-    fontWeight: "700",
-    fontFamily: "Orbitron_700Bold",
-    color: "#FFFFFF",
-  },
-  constructingDot: {
-    position: "absolute",
-    top: 2,
-    left: 2,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: GameColors.warning,
-  },
-  cityGlow: {
-    position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: GameColors.primary,
-    top: PLANET_SIZE / 2 - 5,
-  },
-  cityButton: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    top: PLANET_SIZE / 2,
-  },
-  cityInner: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cityPulseRing: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: GameColors.primary,
-    opacity: 0.5,
-  },
-  cityCore: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: GameColors.surface,
-    borderWidth: 2,
-    borderColor: GameColors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cityLabel: {
-    position: "absolute",
-    bottom: -35,
-    alignItems: "center",
-  },
-  cityLabelText: {
-    fontSize: 10,
-    fontWeight: "700",
-    fontFamily: "Orbitron_700Bold",
-    color: GameColors.primary,
-    letterSpacing: 0.5,
-  },
-  buildingCountText: {
-    fontSize: 9,
-    fontFamily: "Inter_400Regular",
-    color: GameColors.textSecondary,
-    marginTop: 2,
   },
   resourceSummaryContainer: {
-    position: "absolute",
-    top: 0,
     flexDirection: "row",
     justifyContent: "center",
-    gap: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   resourceSummary: {
     flexDirection: "row",
@@ -585,9 +465,185 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: GameColors.textSecondary,
   },
-  legend: {
+  planetArea: {
+    width: PLANET_SIZE,
+    height: PLANET_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orbitRing: {
     position: "absolute",
-    bottom: 0,
+    width: PLANET_SIZE * 0.88,
+    height: PLANET_SIZE * 0.88,
+    borderRadius: PLANET_SIZE * 0.44,
+    borderWidth: 1,
+    borderColor: "rgba(10, 132, 255, 0.1)",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  orbitDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: GameColors.primary,
+    marginTop: -2,
+  },
+  planetWrapper: {
+    width: PLANET_SIZE * 0.55,
+    height: PLANET_SIZE * 0.55,
+    borderRadius: PLANET_SIZE * 0.275,
+    overflow: "hidden",
+    position: "absolute",
+  },
+  planetImage: {
+    width: "100%",
+    height: "100%",
+  },
+  planetAtmosphere: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: PLANET_SIZE * 0.275,
+    borderWidth: 2,
+    borderColor: "rgba(100, 210, 255, 0.2)",
+  },
+  fieldContainer: {
+    position: "absolute",
+    width: FIELD_SIZE,
+    height: FIELD_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fieldGlow: {
+    position: "absolute",
+    width: FIELD_SIZE + 16,
+    height: FIELD_SIZE + 16,
+    borderRadius: (FIELD_SIZE + 16) / 2,
+  },
+  fieldInner: {
+    width: FIELD_SIZE,
+    height: FIELD_SIZE,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+  },
+  emptyField: {
+    flex: 1,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderRadius: BorderRadius.md,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    overflow: "hidden",
+  },
+  emptyFieldImage: {
+    width: "100%",
+    height: "100%",
+    opacity: 0.3,
+  },
+  emptyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  builtField: {
+    flex: 1,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  fieldImage: {
+    width: "100%",
+    height: "100%",
+  },
+  levelBadge: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    minWidth: 16,
+    alignItems: "center",
+  },
+  levelText: {
+    fontSize: 9,
+    fontWeight: "700",
+    fontFamily: "Orbitron_700Bold",
+    color: "#FFFFFF",
+  },
+  constructingIndicator: {
+    position: "absolute",
+    top: 2,
+    left: 2,
+    backgroundColor: "rgba(255, 149, 0, 0.9)",
+    padding: 3,
+    borderRadius: 4,
+  },
+  upgradeIndicator: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    padding: 3,
+    borderRadius: 4,
+  },
+  cityGlow: {
+    position: "absolute",
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    backgroundColor: GameColors.primary,
+  },
+  cityButton: {
+    position: "absolute",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  cityInner: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cityPulseRing: {
+    position: "absolute",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: GameColors.primary,
+    opacity: 0.5,
+  },
+  cityCore: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: GameColors.surface,
+    borderWidth: 2,
+    borderColor: GameColors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cityLabel: {
+    position: "absolute",
+    bottom: -32,
+    alignItems: "center",
+  },
+  cityLabelText: {
+    fontSize: 9,
+    fontWeight: "700",
+    fontFamily: "Orbitron_700Bold",
+    color: GameColors.primary,
+    letterSpacing: 0.5,
+  },
+  buildingCountText: {
+    fontSize: 8,
+    fontFamily: "Inter_400Regular",
+    color: GameColors.textSecondary,
+    marginTop: 1,
+  },
+  legend: {
+    marginTop: Spacing.xl,
     flexDirection: "row",
     justifyContent: "center",
     flexWrap: "wrap",
