@@ -236,14 +236,19 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
   );
 }
 
-function ResourceProgressBar({ label, value, maxValue }: { label: string; value: number; maxValue: number }) {
+function ResourceProgressBar({ label, value, maxValue, rate }: { label: string; value: number; maxValue: number; rate?: number }) {
   const safeValue = Math.max(0, value);
   const ratio = Math.min(safeValue / maxValue, 1);
   const color = getResourceColor(ratio);
   
   return (
     <View style={styles.resourceBarItem}>
-      <ThemedText style={styles.resourceBarLabel}>{label}</ThemedText>
+      <View style={styles.resourceBarHeader}>
+        <ThemedText style={styles.resourceBarLabel}>{label}</ThemedText>
+        {rate !== undefined ? (
+          <ThemedText style={styles.resourceBarRate}>+{formatNumber(rate)}/h</ThemedText>
+        ) : null}
+      </View>
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBarBackground}>
           <View 
@@ -271,9 +276,9 @@ function ResourceBar({ resources }: { resources?: PlayerResources }) {
   
   return (
     <View style={styles.resourceBar}>
-      <ResourceProgressBar label="Metal" value={metal} maxValue={maxResource} />
-      <ResourceProgressBar label="Crystal" value={crystal} maxValue={maxResource} />
-      <ResourceProgressBar label="O2" value={oxygen} maxValue={maxResource} />
+      <ResourceProgressBar label="Metal" value={metal} maxValue={maxResource} rate={resources?.metalRate} />
+      <ResourceProgressBar label="Crystal" value={crystal} maxValue={maxResource} rate={resources?.crystalRate} />
+      <ResourceProgressBar label="O2" value={oxygen} maxValue={maxResource} rate={resources?.oxygenRate} />
       <ResourceProgressBar label="Energy" value={energy} maxValue={maxResource} />
     </View>
   );
@@ -414,12 +419,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
   },
+  resourceBarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   resourceBarLabel: {
     fontSize: 7,
     fontFamily: "Inter_500Medium",
     color: GameColors.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  resourceBarRate: {
+    fontSize: 7,
+    fontFamily: "Orbitron_700Bold",
+    color: GameColors.success,
   },
   progressBarContainer: {
     width: 50,

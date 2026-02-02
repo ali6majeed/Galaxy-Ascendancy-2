@@ -19,7 +19,6 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { Feather } from "@expo/vector-icons";
 
-import { ResourceBar } from "@/components/ResourceBar";
 import { ZoomedOutPlanet } from "@/components/ZoomedOutPlanet";
 import { CityView } from "@/components/CityView";
 import { BuildingDetailModal } from "@/components/BuildingDetailModal";
@@ -217,20 +216,6 @@ export default function PlanetScreen() {
           />
         }
       >
-        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
-          <ResourceBar
-            metal={resources?.metal ?? 0}
-            crystal={resources?.crystal ?? 0}
-            oxygen={resources?.oxygen ?? 0}
-            energyProduction={resources?.energyProduction ?? 0}
-            energyConsumption={resources?.energyConsumption ?? 0}
-            energyEfficiency={resources?.energyEfficiency ?? 100}
-            metalRate={resources?.metalRate ?? 0}
-            crystalRate={resources?.crystalRate ?? 0}
-            oxygenRate={resources?.oxygenRate ?? 0}
-          />
-        </Animated.View>
-
         {constructionQueue && constructionQueue.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.section}>
             <ConstructionQueue items={constructionQueue} />
