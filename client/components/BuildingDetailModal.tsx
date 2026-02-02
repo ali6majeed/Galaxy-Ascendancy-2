@@ -237,12 +237,13 @@ export function BuildingDetailModal({
               </View>
 
               <GameButton
-                title={isUpgrading ? "Starting..." : canAfford ? "Upgrade" : "Not Enough Resources"}
                 onPress={handleUpgrade}
                 disabled={!canAfford || isUpgrading}
                 variant={canAfford ? "primary" : "secondary"}
-                icon={canAfford && !isUpgrading ? "arrow-up-circle" : undefined}
-              />
+                icon={canAfford && !isUpgrading ? <Feather name="arrow-up-circle" size={18} color={GameColors.textPrimary} /> : undefined}
+              >
+                {isUpgrading ? "Starting..." : canAfford ? "Upgrade" : "Not Enough Resources"}
+              </GameButton>
             </View>
           </ScrollView>
         </Animated.View>
