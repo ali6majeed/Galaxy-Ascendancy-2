@@ -5,7 +5,6 @@ import {
   Dimensions,
   Pressable,
   Image,
-  ImageSourcePropType,
   ScrollView,
 } from "react-native";
 import Animated, {
@@ -32,31 +31,7 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MAP_SIZE = Math.min(SCREEN_WIDTH - 24, 380);
 
-const cityMapBase = require("../../assets/images/city-map-base.png");
-
-const commandCenterBasic = require("../../assets/images/command-center-basic.png");
-const commandCenterAdvanced = require("../../assets/images/command-center-advanced.png");
-const commandCenterElite = require("../../assets/images/command-center-elite.png");
-
-const researchLabBasic = require("../../assets/images/research-lab-basic.png");
-const researchLabAdvanced = require("../../assets/images/research-lab-advanced.png");
-const researchLabElite = require("../../assets/images/research-lab-elite.png");
-
-const fleetDockBasic = require("../../assets/images/fleet-dock-basic.png");
-const fleetDockAdvanced = require("../../assets/images/fleet-dock-advanced.png");
-const fleetDockElite = require("../../assets/images/fleet-dock-elite.png");
-
-const shipyardBasic = require("../../assets/images/shipyard-basic.png");
-const shipyardAdvanced = require("../../assets/images/shipyard-advanced.png");
-const shipyardElite = require("../../assets/images/shipyard-elite.png");
-
-const defensePlatformBasic = require("../../assets/images/defense-platform-basic.png");
-const defensePlatformAdvanced = require("../../assets/images/defense-platform-advanced.png");
-const defensePlatformElite = require("../../assets/images/defense-platform-elite.png");
-
-const tradeHubBasic = require("../../assets/images/trade-hub-basic.png");
-const tradeHubAdvanced = require("../../assets/images/trade-hub-advanced.png");
-const tradeHubElite = require("../../assets/images/trade-hub-elite.png");
+const cityComplete = require("../../assets/images/city-complete.png");
 
 interface Building {
   id: string;
@@ -88,41 +63,6 @@ const BUILDING_POSITIONS: MapPosition[] = [
   { x: 0.5, y: 0.78, size: 65, buildingType: BUILDING_TYPES.TRADE_HUB },
 ];
 
-type UpgradeStage = "basic" | "advanced" | "elite";
-
-const BUILDING_STAGE_IMAGES: Record<string, Record<UpgradeStage, ImageSourcePropType>> = {
-  [BUILDING_TYPES.COMMAND_CENTER]: {
-    basic: commandCenterBasic,
-    advanced: commandCenterAdvanced,
-    elite: commandCenterElite,
-  },
-  [BUILDING_TYPES.RESEARCH_LAB]: {
-    basic: researchLabBasic,
-    advanced: researchLabAdvanced,
-    elite: researchLabElite,
-  },
-  [BUILDING_TYPES.FLEET_DOCK]: {
-    basic: fleetDockBasic,
-    advanced: fleetDockAdvanced,
-    elite: fleetDockElite,
-  },
-  [BUILDING_TYPES.SHIPYARD]: {
-    basic: shipyardBasic,
-    advanced: shipyardAdvanced,
-    elite: shipyardElite,
-  },
-  [BUILDING_TYPES.DEFENSE_PLATFORM]: {
-    basic: defensePlatformBasic,
-    advanced: defensePlatformAdvanced,
-    elite: defensePlatformElite,
-  },
-  [BUILDING_TYPES.TRADE_HUB]: {
-    basic: tradeHubBasic,
-    advanced: tradeHubAdvanced,
-    elite: tradeHubElite,
-  },
-};
-
 const BUILDING_COLORS: Record<string, string> = {
   [BUILDING_TYPES.COMMAND_CENTER]: "#00D4FF",
   [BUILDING_TYPES.RESEARCH_LAB]: "#00FF88",
@@ -131,18 +71,6 @@ const BUILDING_COLORS: Record<string, string> = {
   [BUILDING_TYPES.DEFENSE_PLATFORM]: "#FF3366",
   [BUILDING_TYPES.TRADE_HUB]: "#AA66FF",
 };
-
-function getUpgradeStage(level: number): UpgradeStage {
-  if (level >= 7) return "elite";
-  if (level >= 4) return "advanced";
-  return "basic";
-}
-
-function getBuildingImage(buildingType: BuildingType, level: number): ImageSourcePropType {
-  const stages = BUILDING_STAGE_IMAGES[buildingType];
-  if (!stages) return commandCenterBasic;
-  return stages[getUpgradeStage(level)];
-}
 
 interface MapBuildingProps {
   position: MapPosition;
@@ -225,11 +153,6 @@ function MapBuilding({ position, building, onPress }: MapBuildingProps) {
               { backgroundColor: color, shadowColor: color },
             ]}
           />
-          <Image
-            source={getBuildingImage(position.buildingType, building.level)}
-            style={styles.buildingImage}
-            resizeMode="contain"
-          />
           
           <View style={[styles.levelIndicator, { backgroundColor: color }]}>
             <ThemedText style={styles.levelText}>{building.level}</ThemedText>
@@ -239,12 +162,7 @@ function MapBuilding({ position, building, onPress }: MapBuildingProps) {
             <View style={styles.constructingOverlay}>
               <Feather name="settings" size={18} color={GameColors.warning} />
             </View>
-          ) : (
-            <View style={styles.activityLights}>
-              <View style={[styles.light, { backgroundColor: color }]} />
-              <View style={[styles.light, { backgroundColor: color, opacity: 0.5 }]} />
-            </View>
-          )}
+          ) : null}
         </Animated.View>
       )}
 
@@ -308,7 +226,7 @@ export function CityView({
       <CityPower buildings={buildings} />
 
       <View style={styles.mapContainer}>
-        <Image source={cityMapBase} style={styles.mapBackground} resizeMode="cover" />
+        <Image source={cityComplete} style={styles.mapBackground} resizeMode="cover" />
         
         <View style={styles.mapOverlay}>
           {BUILDING_POSITIONS.map((position) => {
