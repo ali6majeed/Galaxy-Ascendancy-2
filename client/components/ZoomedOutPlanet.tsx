@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { View, StyleSheet, Image, Dimensions, Pressable, ImageSourcePropType } from "react-native";
+import { View, StyleSheet, Image, Dimensions, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,7 +24,7 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLANET_SIZE = SCREEN_WIDTH * 0.95;
-const FIELD_SIZE = 40;
+const FIELD_SIZE = 44;
 
 interface Building {
   id: string;
@@ -54,13 +54,6 @@ interface ZoomedOutPlanetProps {
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-const FIELD_IMAGES: Record<string, ImageSourcePropType> = {
-  [BUILDING_TYPES.METAL_MINE]: require("../../assets/images/field-metal.png"),
-  [BUILDING_TYPES.CRYSTAL_REFINERY]: require("../../assets/images/field-crystal.png"),
-  [BUILDING_TYPES.OXYGEN_PROCESSOR]: require("../../assets/images/field-oxygen.png"),
-  [BUILDING_TYPES.ENERGY_PLANT]: require("../../assets/images/field-energy.png"),
-};
 
 const BUILDING_COLORS: Record<string, string> = {
   [BUILDING_TYPES.METAL_MINE]: "#8B7355",
@@ -151,46 +144,8 @@ interface ResourceFieldProps {
 }
 
 function ResourceField({ position, building, onPress }: ResourceFieldProps) {
-  const pulseAnim = useSharedValue(1);
-  const glowAnim = useSharedValue(0);
-  
   const isEmpty = !building;
-  const canUpgrade = building && !building.isConstructing;
   const color = BUILDING_COLORS[position.buildingType];
-  const fieldImage = FIELD_IMAGES[position.buildingType];
-  
-  useEffect(() => {
-    if (canUpgrade) {
-      pulseAnim.value = withRepeat(
-        withTiming(1.12, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
-      );
-      glowAnim.value = withRepeat(
-        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
-      );
-    } else if (isEmpty) {
-      pulseAnim.value = withRepeat(
-        withSequence(
-          withTiming(1.05, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
-    }
-  }, [canUpgrade, isEmpty]);
-  
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseAnim.value }],
-  }));
-  
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(glowAnim.value, [0, 1], [0, 0.6]),
-    transform: [{ scale: interpolate(glowAnim.value, [0, 1], [1, 1.3]) }],
-  }));
   
   return (
     <Pressable
@@ -207,32 +162,16 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
       ]}
       testID={`resource-slot-${position.buildingType}-${position.slotIndex}`}
     >
-      {canUpgrade ? (
-        <Animated.View style={[styles.fieldGlow, glowStyle, { backgroundColor: color }]} />
-      ) : null}
-      
-      <Animated.View style={[styles.fieldInner, animatedStyle]}>
-        <Image 
-          source={fieldImage} 
-          style={[styles.fieldImage, isEmpty ? styles.emptyFieldImage : null]} 
-          resizeMode="cover" 
-        />
-        
-        {isEmpty ? (
-          <View style={styles.emptyOverlay}>
-            <View style={[styles.emptyShadow, { shadowColor: color }]} />
-          </View>
-        ) : (
-          <>
-            <ThemedText style={[styles.levelNumber, { color }]}>{building.level}</ThemedText>
-            {building.isConstructing ? (
-              <View style={styles.constructingIndicator}>
-                <Feather name="loader" size={10} color={GameColors.warning} />
-              </View>
-            ) : null}
-          </>
-        )}
-      </Animated.View>
+      {isEmpty ? null : (
+        <View style={styles.levelBadge}>
+          <ThemedText style={[styles.levelNumber, { color }]}>{building.level}</ThemedText>
+          {building.isConstructing ? (
+            <View style={styles.constructingIndicator}>
+              <Feather name="loader" size={10} color={GameColors.warning} />
+            </View>
+          ) : null}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -483,53 +422,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  fieldGlow: {
-    position: "absolute",
-    width: FIELD_SIZE + 20,
-    height: FIELD_SIZE + 20,
-    borderRadius: (FIELD_SIZE + 20) / 2,
-  },
-  fieldInner: {
-    width: FIELD_SIZE,
-    height: FIELD_SIZE,
-    borderRadius: FIELD_SIZE / 2,
-    overflow: "hidden",
-  },
-  fieldImage: {
-    width: "100%",
-    height: "100%",
-  },
-  emptyFieldImage: {
-    opacity: 0.4,
-  },
-  emptyOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  levelBadge: {
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyShadow: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   levelNumber: {
-    position: "absolute",
     fontSize: 14,
     fontWeight: "900",
     fontFamily: "Orbitron_700Bold",
-    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowColor: "rgba(0,0,0,0.9)",
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
   constructingIndicator: {
     position: "absolute",
-    top: 0,
-    left: 0,
+    top: -8,
+    right: -8,
     backgroundColor: "rgba(0,0,0,0.7)",
     padding: 3,
     borderRadius: 8,
