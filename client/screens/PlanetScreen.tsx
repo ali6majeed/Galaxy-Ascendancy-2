@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 
 import { ResourceBar } from "@/components/ResourceBar";
 import { LayerSwitcher } from "@/components/LayerSwitcher";
 import { PlanetView } from "@/components/PlanetView";
 import { BuildingCard } from "@/components/BuildingCard";
+import { BuildingDetailModal } from "@/components/BuildingDetailModal";
 import { ConstructionQueue } from "@/components/ConstructionQueue";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonCard } from "@/components/SkeletonLoader";
@@ -23,9 +23,7 @@ import {
   BuildingType,
   BUILDING_DEFINITIONS,
 } from "@/constants/gameData";
-import { RootStackParamList } from "@/navigation/RootStackNavigator";
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+import { apiRequest } from "@/lib/query-client";
 
 interface PlayerResources {
   metal: number;
@@ -58,11 +56,12 @@ export default function PlanetScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
 
   const [activeLayer, setActiveLayer] = useState<LayerType>(LAYER_TYPES.SURFACE);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const { data: resources, isLoading: resourcesLoading } = useQuery<PlayerResources>({
     queryKey: ["/api/player/resources"],
@@ -74,6 +73,23 @@ export default function PlanetScreen() {
 
   const { data: constructionQueue } = useQuery<ConstructionItem[]>({
     queryKey: ["/api/player/construction"],
+  });
+
+  const upgradeMutation = useMutation({
+    mutationFn: async (buildingType: BuildingType) => {
+      return apiRequest(`/api/buildings/${buildingType}/upgrade`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ["/api/player"] });
+      setModalVisible(false);
+      setSelectedBuilding(null);
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
   });
 
   const onRefresh = useCallback(async () => {
@@ -88,100 +104,125 @@ export default function PlanetScreen() {
   }) || [];
 
   const handleBuildingPress = (building: Building) => {
-    navigation.navigate("BuildingDetail", {
-      buildingType: building.buildingType,
-      level: building.level,
-    });
+    setSelectedBuilding(building);
+    setModalVisible(true);
   };
 
-  const handleConstructionPress = () => {
-    navigation.navigate("ConstructionQueue");
+  const handleUpgrade = (buildingType: BuildingType) => {
+    upgradeMutation.mutate(buildingType);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setSelectedBuilding(null);
   };
 
   const isLoading = resourcesLoading || buildingsLoading;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{
-        paddingTop: headerHeight + Spacing.lg,
-        paddingBottom: tabBarHeight + Spacing.xl,
-        paddingHorizontal: Spacing.lg,
-      }}
-      scrollIndicatorInsets={{ bottom: insets.bottom }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={GameColors.primary}
-        />
-      }
-    >
-      <Animated.View entering={FadeInDown.delay(0).duration(400)}>
-        <ResourceBar
-          metal={resources?.metal ?? 0}
-          crystal={resources?.crystal ?? 0}
-          oxygen={resources?.oxygen ?? 0}
-          energy={resources?.energy ?? 0}
-          energyCapacity={resources?.energyCapacity ?? 0}
-          metalRate={resources?.metalRate ?? 0}
-          crystalRate={resources?.crystalRate ?? 0}
-          oxygenRate={resources?.oxygenRate ?? 0}
-          energyRate={resources?.energyRate ?? 0}
-        />
-      </Animated.View>
-
-      <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.section}>
-        <LayerSwitcher activeLayer={activeLayer} onLayerChange={setActiveLayer} />
-      </Animated.View>
-
-      <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.planetSection}>
-        <PlanetView activeLayer={activeLayer} />
-      </Animated.View>
-
-      {constructionQueue && constructionQueue.length > 0 ? (
-        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
-          <ConstructionQueue items={constructionQueue} onPress={handleConstructionPress} />
-        </Animated.View>
-      ) : null}
-
-      <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>
-          {activeLayer.charAt(0).toUpperCase() + activeLayer.slice(1)} Structures
-        </ThemedText>
-
-        {isLoading ? (
-          <View style={styles.buildingList}>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </View>
-        ) : filteredBuildings.length > 0 ? (
-          <View style={styles.buildingList}>
-            {filteredBuildings.map((building, index) => (
-              <Animated.View
-                key={building.id}
-                entering={FadeInDown.delay(450 + index * 50).duration(300)}
-              >
-                <BuildingCard
-                  buildingType={building.buildingType}
-                  level={building.level}
-                  isConstructing={building.isConstructing}
-                  onPress={() => handleBuildingPress(building)}
-                />
-              </Animated.View>
-            ))}
-          </View>
-        ) : (
-          <EmptyState
-            image={require("../../assets/images/empty-construction.png")}
-            title="No Structures Yet"
-            description={`Build your first ${activeLayer} structure to begin your galactic conquest.`}
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: tabBarHeight + Spacing.xl,
+          paddingHorizontal: Spacing.lg,
+        }}
+        scrollIndicatorInsets={{ bottom: insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={GameColors.primary}
           />
-        )}
-      </Animated.View>
-    </ScrollView>
+        }
+      >
+        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+          <ResourceBar
+            metal={resources?.metal ?? 0}
+            crystal={resources?.crystal ?? 0}
+            oxygen={resources?.oxygen ?? 0}
+            energy={resources?.energy ?? 0}
+            energyCapacity={resources?.energyCapacity ?? 0}
+            metalRate={resources?.metalRate ?? 0}
+            crystalRate={resources?.crystalRate ?? 0}
+            oxygenRate={resources?.oxygenRate ?? 0}
+            energyRate={resources?.energyRate ?? 0}
+          />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.section}>
+          <LayerSwitcher activeLayer={activeLayer} onLayerChange={setActiveLayer} />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.planetSection}>
+          <PlanetView
+            activeLayer={activeLayer}
+            buildings={buildings || []}
+            onBuildingPress={handleBuildingPress}
+          />
+        </Animated.View>
+
+        {constructionQueue && constructionQueue.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
+            <ConstructionQueue items={constructionQueue} />
+          </Animated.View>
+        ) : null}
+
+        <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>
+            {activeLayer.charAt(0).toUpperCase() + activeLayer.slice(1)} Structures
+          </ThemedText>
+
+          {isLoading ? (
+            <View style={styles.buildingList}>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </View>
+          ) : filteredBuildings.length > 0 ? (
+            <View style={styles.buildingList}>
+              {filteredBuildings.map((building, index) => (
+                <Animated.View
+                  key={building.id}
+                  entering={FadeInDown.delay(450 + index * 50).duration(300)}
+                >
+                  <BuildingCard
+                    buildingType={building.buildingType}
+                    level={building.level}
+                    isConstructing={building.isConstructing}
+                    onPress={() => handleBuildingPress(building)}
+                  />
+                </Animated.View>
+              ))}
+            </View>
+          ) : (
+            <EmptyState
+              image={require("../../assets/images/empty-construction.png")}
+              title="No Structures Yet"
+              description={`Build your first ${activeLayer} structure to begin your galactic conquest.`}
+            />
+          )}
+        </Animated.View>
+      </ScrollView>
+
+      <BuildingDetailModal
+        visible={modalVisible}
+        onClose={handleCloseModal}
+        buildingType={selectedBuilding?.buildingType || null}
+        level={selectedBuilding?.level || 1}
+        resources={{
+          metal: resources?.metal ?? 0,
+          crystal: resources?.crystal ?? 0,
+          oxygen: resources?.oxygen ?? 0,
+          energy: resources?.energy ?? 0,
+          energyCapacity: resources?.energyCapacity ?? 0,
+        }}
+        onUpgrade={handleUpgrade}
+        isUpgrading={upgradeMutation.isPending}
+      />
+    </>
   );
 }
 
