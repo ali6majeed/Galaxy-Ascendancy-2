@@ -28,11 +28,15 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CITY_SIZE = Math.min(SCREEN_WIDTH * 0.95, 400);
-const BUILDING_SPOT_SIZE = 70;
+const BUILDING_SPOT_SIZE = 58;
 
 const cityCenterBg = require("../../assets/images/city-center-bg.png");
 const buildingResearchLab = require("../../assets/images/building-research-lab.png");
 const buildingFleetDock = require("../../assets/images/building-fleet-dock.png");
+const buildingCommandCenter = require("../../assets/images/building-command-center.png");
+const buildingShipyard = require("../../assets/images/building-shipyard.png");
+const buildingDefensePlatform = require("../../assets/images/building-defense-platform.png");
+const buildingTradeHub = require("../../assets/images/building-trade-hub.png");
 
 interface Building {
   id: string;
@@ -55,18 +59,30 @@ interface BuildingSpotPosition {
 }
 
 const BUILDING_SPOT_POSITIONS: BuildingSpotPosition[] = [
-  { x: CITY_SIZE * 0.25, y: CITY_SIZE * 0.35, buildingType: BUILDING_TYPES.RESEARCH_LAB },
-  { x: CITY_SIZE * 0.65, y: CITY_SIZE * 0.55, buildingType: BUILDING_TYPES.FLEET_DOCK },
+  { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.22, buildingType: BUILDING_TYPES.COMMAND_CENTER },
+  { x: CITY_SIZE * 0.22, y: CITY_SIZE * 0.42, buildingType: BUILDING_TYPES.RESEARCH_LAB },
+  { x: CITY_SIZE * 0.78, y: CITY_SIZE * 0.42, buildingType: BUILDING_TYPES.FLEET_DOCK },
+  { x: CITY_SIZE * 0.28, y: CITY_SIZE * 0.68, buildingType: BUILDING_TYPES.SHIPYARD },
+  { x: CITY_SIZE * 0.72, y: CITY_SIZE * 0.68, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM },
+  { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.82, buildingType: BUILDING_TYPES.TRADE_HUB },
 ];
 
 const BUILDING_IMAGES: Record<string, ImageSourcePropType> = {
+  [BUILDING_TYPES.COMMAND_CENTER]: buildingCommandCenter,
   [BUILDING_TYPES.RESEARCH_LAB]: buildingResearchLab,
   [BUILDING_TYPES.FLEET_DOCK]: buildingFleetDock,
+  [BUILDING_TYPES.SHIPYARD]: buildingShipyard,
+  [BUILDING_TYPES.DEFENSE_PLATFORM]: buildingDefensePlatform,
+  [BUILDING_TYPES.TRADE_HUB]: buildingTradeHub,
 };
 
 const BUILDING_COLORS: Record<string, string> = {
+  [BUILDING_TYPES.COMMAND_CENTER]: "#3498DB",
   [BUILDING_TYPES.RESEARCH_LAB]: "#1ABC9C",
   [BUILDING_TYPES.FLEET_DOCK]: "#E74C3C",
+  [BUILDING_TYPES.SHIPYARD]: "#F39C12",
+  [BUILDING_TYPES.DEFENSE_PLATFORM]: "#9B59B6",
+  [BUILDING_TYPES.TRADE_HUB]: "#F1C40F",
 };
 
 interface BuildingSpotProps {
@@ -165,8 +181,12 @@ export function CityView({
 }: CityViewProps) {
   const facilityBuildings = buildings.filter(
     (b) =>
+      b.buildingType === BUILDING_TYPES.COMMAND_CENTER ||
       b.buildingType === BUILDING_TYPES.RESEARCH_LAB ||
-      b.buildingType === BUILDING_TYPES.FLEET_DOCK
+      b.buildingType === BUILDING_TYPES.FLEET_DOCK ||
+      b.buildingType === BUILDING_TYPES.SHIPYARD ||
+      b.buildingType === BUILDING_TYPES.DEFENSE_PLATFORM ||
+      b.buildingType === BUILDING_TYPES.TRADE_HUB
   );
 
   return (

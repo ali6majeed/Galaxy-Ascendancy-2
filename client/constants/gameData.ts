@@ -22,6 +22,10 @@ export const BUILDING_TYPES = {
   ENERGY_PLANT: "energy_plant",
   FLEET_DOCK: "fleet_dock",
   RESEARCH_LAB: "research_lab",
+  COMMAND_CENTER: "command_center",
+  SHIPYARD: "shipyard",
+  DEFENSE_PLATFORM: "defense_platform",
+  TRADE_HUB: "trade_hub",
 } as const;
 
 export const BUILDING_CATEGORIES = {
@@ -39,8 +43,12 @@ export const RESOURCE_BUILDINGS: BuildingType[] = [
 ];
 
 export const FACILITY_BUILDINGS: BuildingType[] = [
+  BUILDING_TYPES.COMMAND_CENTER,
   BUILDING_TYPES.RESEARCH_LAB,
   BUILDING_TYPES.FLEET_DOCK,
+  BUILDING_TYPES.SHIPYARD,
+  BUILDING_TYPES.DEFENSE_PLATFORM,
+  BUILDING_TYPES.TRADE_HUB,
 ];
 
 export type BuildingType = (typeof BUILDING_TYPES)[keyof typeof BUILDING_TYPES];
@@ -52,6 +60,10 @@ export const BUILDING_MAX_SLOTS: Record<BuildingType, number> = {
   [BUILDING_TYPES.ENERGY_PLANT]: 4,
   [BUILDING_TYPES.FLEET_DOCK]: 1,
   [BUILDING_TYPES.RESEARCH_LAB]: 1,
+  [BUILDING_TYPES.COMMAND_CENTER]: 1,
+  [BUILDING_TYPES.SHIPYARD]: 1,
+  [BUILDING_TYPES.DEFENSE_PLATFORM]: 1,
+  [BUILDING_TYPES.TRADE_HUB]: 1,
 };
 
 export interface BuildingSlot {
@@ -161,6 +173,50 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     baseCost: { metal: 200, crystal: 400, oxygen: 200 },
     baseConstructionTime: 240,
     energyConsumption: 25,
+  },
+  [BUILDING_TYPES.COMMAND_CENTER]: {
+    id: BUILDING_TYPES.COMMAND_CENTER,
+    name: "Command Center",
+    description: "The heart of your colony. Required to unlock other city buildings.",
+    layer: LAYER_TYPES.SURFACE,
+    baseProductionRate: 0,
+    resourceType: null,
+    baseCost: { metal: 100, crystal: 50, oxygen: 50 },
+    baseConstructionTime: 120,
+    energyConsumption: 15,
+  },
+  [BUILDING_TYPES.SHIPYARD]: {
+    id: BUILDING_TYPES.SHIPYARD,
+    name: "Shipyard",
+    description: "Constructs and assembles spacecraft for your fleet.",
+    layer: LAYER_TYPES.ORBIT,
+    baseProductionRate: 0,
+    resourceType: null,
+    baseCost: { metal: 500, crystal: 300, oxygen: 150 },
+    baseConstructionTime: 360,
+    energyConsumption: 40,
+  },
+  [BUILDING_TYPES.DEFENSE_PLATFORM]: {
+    id: BUILDING_TYPES.DEFENSE_PLATFORM,
+    name: "Defense Platform",
+    description: "Orbital defenses that protect your planet from enemy attacks.",
+    layer: LAYER_TYPES.ORBIT,
+    baseProductionRate: 0,
+    resourceType: null,
+    baseCost: { metal: 350, crystal: 150, oxygen: 100 },
+    baseConstructionTime: 300,
+    energyConsumption: 35,
+  },
+  [BUILDING_TYPES.TRADE_HUB]: {
+    id: BUILDING_TYPES.TRADE_HUB,
+    name: "Trade Hub",
+    description: "Buy and sell resources with other players and NPC markets.",
+    layer: LAYER_TYPES.SURFACE,
+    baseProductionRate: 0,
+    resourceType: null,
+    baseCost: { metal: 300, crystal: 200, oxygen: 100 },
+    baseConstructionTime: 240,
+    energyConsumption: 20,
   },
 };
 
