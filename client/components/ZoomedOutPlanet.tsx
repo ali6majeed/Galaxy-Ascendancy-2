@@ -85,40 +85,44 @@ function getFieldPositionsOnPlanet(): FieldPosition[] {
   const planetRadius = PLANET_SIZE * 0.45;
   const centerX = PLANET_SIZE / 2;
   const centerY = PLANET_SIZE / 2;
+  
+  const allSlots: { type: BuildingType; slotIndex: number }[] = [];
+  
+  for (let i = 0; i < 4; i++) allSlots.push({ type: BUILDING_TYPES.METAL_MINE, slotIndex: i });
+  for (let i = 0; i < 4; i++) allSlots.push({ type: BUILDING_TYPES.CRYSTAL_REFINERY, slotIndex: i });
+  for (let i = 0; i < 6; i++) allSlots.push({ type: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: i });
+  for (let i = 0; i < 4; i++) allSlots.push({ type: BUILDING_TYPES.ENERGY_PLANT, slotIndex: i });
+  
+  const shuffledSlots: { type: BuildingType; slotIndex: number }[] = [];
+  const indices = allSlots.map((_, i) => i);
+  for (let i = 0; i < allSlots.length; i++) {
+    const seed = i * 73 + 42;
+    const randIndex = Math.floor(seededRandom(seed) * indices.length);
+    shuffledSlots.push(allSlots[indices[randIndex]]);
+    indices.splice(randIndex, 1);
+  }
+  
   const positions: FieldPosition[] = [];
+  const totalSlots = shuffledSlots.length;
   
-  const allSlots: { type: BuildingType; count: number }[] = [
-    { type: BUILDING_TYPES.METAL_MINE, count: 4 },
-    { type: BUILDING_TYPES.CRYSTAL_REFINERY, count: 4 },
-    { type: BUILDING_TYPES.OXYGEN_PROCESSOR, count: 6 },
-    { type: BUILDING_TYPES.ENERGY_PLANT, count: 4 },
-  ];
-  
-  const totalSlots = allSlots.reduce((sum, s) => sum + s.count, 0);
-  let slotIndex = 0;
-  
-  allSlots.forEach((slotConfig) => {
-    for (let i = 0; i < slotConfig.count; i++) {
-      const seed = slotIndex * 137 + i * 47;
-      
-      const baseAngle = (slotIndex / totalSlots) * 360;
-      const angleOffset = (seededRandom(seed) - 0.5) * 30;
-      const angle = baseAngle + angleOffset;
-      
-      const minRadius = 0.12;
-      const maxRadius = 0.88;
-      const radiusVariation = seededRandom(seed + 100);
-      const radius = (minRadius + radiusVariation * (maxRadius - minRadius)) * planetRadius;
-      
-      positions.push({
-        x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-        y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
-        buildingType: slotConfig.type,
-        slotIndex: i,
-      });
-      
-      slotIndex++;
-    }
+  shuffledSlots.forEach((slot, i) => {
+    const seed = i * 97 + slot.slotIndex * 31;
+    
+    const baseAngle = (i / totalSlots) * 360;
+    const angleOffset = (seededRandom(seed + 200) - 0.5) * 40;
+    const angle = baseAngle + angleOffset;
+    
+    const minRadius = 0.15;
+    const maxRadius = 0.85;
+    const radiusVariation = seededRandom(seed + 300);
+    const radius = (minRadius + radiusVariation * (maxRadius - minRadius)) * planetRadius;
+    
+    positions.push({
+      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
+      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
+      buildingType: slot.type,
+      slotIndex: slot.slotIndex,
+    });
   });
   
   return positions;
