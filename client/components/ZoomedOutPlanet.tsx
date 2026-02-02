@@ -24,7 +24,7 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLANET_SIZE = SCREEN_WIDTH * 0.95;
-const FIELD_SIZE = 42;
+const FIELD_SIZE = 40;
 
 interface Building {
   id: string;
@@ -87,71 +87,56 @@ function getFieldPositionsOnPlanet(): FieldPosition[] {
   const centerY = PLANET_SIZE / 2;
   const positions: FieldPosition[] = [];
   
-  const metalZone = { startAngle: 200, endAngle: 260, innerRadius: 0.25, outerRadius: 0.42 };
-  for (let i = 0; i < 4; i++) {
-    const seed = 100 + i;
-    const angleRange = metalZone.endAngle - metalZone.startAngle;
-    const angle = metalZone.startAngle + (i / 4) * angleRange + seededRandom(seed) * 12;
-    const radiusRange = metalZone.outerRadius - metalZone.innerRadius;
-    const radius = (metalZone.innerRadius + seededRandom(seed + 50) * radiusRange) * planetRadius;
-    
-    positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
-      buildingType: BUILDING_TYPES.METAL_MINE,
-      slotIndex: i,
-    });
-  }
+  const allSlots: { type: BuildingType; count: number }[] = [
+    { type: BUILDING_TYPES.METAL_MINE, count: 4 },
+    { type: BUILDING_TYPES.CRYSTAL_REFINERY, count: 4 },
+    { type: BUILDING_TYPES.OXYGEN_PROCESSOR, count: 6 },
+    { type: BUILDING_TYPES.ENERGY_PLANT, count: 4 },
+  ];
   
-  const crystalZone = { startAngle: 280, endAngle: 350, innerRadius: 0.2, outerRadius: 0.4 };
-  for (let i = 0; i < 4; i++) {
-    const seed = 200 + i;
-    const angleRange = crystalZone.endAngle - crystalZone.startAngle;
-    const angle = crystalZone.startAngle + (i / 4) * angleRange + seededRandom(seed) * 15;
-    const radiusRange = crystalZone.outerRadius - crystalZone.innerRadius;
-    const radius = (crystalZone.innerRadius + seededRandom(seed + 50) * radiusRange) * planetRadius;
-    
-    positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
-      buildingType: BUILDING_TYPES.CRYSTAL_REFINERY,
-      slotIndex: i,
-    });
-  }
+  const totalSlots = allSlots.reduce((sum, s) => sum + s.count, 0);
+  let slotIndex = 0;
   
-  const oxygenZone = { startAngle: 20, endAngle: 110, innerRadius: 0.15, outerRadius: 0.4 };
-  for (let i = 0; i < 6; i++) {
-    const seed = 300 + i;
-    const angleRange = oxygenZone.endAngle - oxygenZone.startAngle;
-    const angle = oxygenZone.startAngle + (i / 6) * angleRange + seededRandom(seed) * 12;
-    const radiusRange = oxygenZone.outerRadius - oxygenZone.innerRadius;
-    const radius = (oxygenZone.innerRadius + seededRandom(seed + 50) * radiusRange) * planetRadius;
-    
-    positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
-      buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR,
-      slotIndex: i,
-    });
-  }
-  
-  const energyZone = { startAngle: 130, endAngle: 190, innerRadius: 0.2, outerRadius: 0.42 };
-  for (let i = 0; i < 4; i++) {
-    const seed = 400 + i;
-    const angleRange = energyZone.endAngle - energyZone.startAngle;
-    const angle = energyZone.startAngle + (i / 4) * angleRange + seededRandom(seed) * 12;
-    const radiusRange = energyZone.outerRadius - energyZone.innerRadius;
-    const radius = (energyZone.innerRadius + seededRandom(seed + 50) * radiusRange) * planetRadius;
-    
-    positions.push({
-      x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
-      y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
-      buildingType: BUILDING_TYPES.ENERGY_PLANT,
-      slotIndex: i,
-    });
-  }
+  allSlots.forEach((slotConfig) => {
+    for (let i = 0; i < slotConfig.count; i++) {
+      const seed = slotIndex * 137 + i * 47;
+      
+      const baseAngle = (slotIndex / totalSlots) * 360;
+      const angleOffset = (seededRandom(seed) - 0.5) * 25;
+      const angle = baseAngle + angleOffset;
+      
+      const minRadius = 0.15;
+      const maxRadius = 0.42;
+      const radiusVariation = seededRandom(seed + 100);
+      const radius = (minRadius + radiusVariation * (maxRadius - minRadius)) * planetRadius;
+      
+      positions.push({
+        x: centerX + Math.cos((angle * Math.PI) / 180) * radius,
+        y: centerY + Math.sin((angle * Math.PI) / 180) * radius,
+        buildingType: slotConfig.type,
+        slotIndex: i,
+      });
+      
+      slotIndex++;
+    }
+  });
   
   return positions;
+}
+
+function getResourceColor(value: number, maxValue: number): string {
+  const safeValue = Math.max(0, value);
+  const ratio = Math.min(safeValue / maxValue, 1);
+  
+  if (ratio < 0.25) {
+    return "#E74C3C";
+  } else if (ratio < 0.5) {
+    return "#E67E22";
+  } else if (ratio < 0.75) {
+    return "#F1C40F";
+  } else {
+    return "#2ECC71";
+  }
 }
 
 interface ResourceFieldProps {
@@ -250,25 +235,52 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
   );
 }
 
-function ResourceSummary({ 
-  icon, 
-  rate, 
-  color, 
-  label,
-}: { 
-  icon: ImageSourcePropType; 
-  rate: number; 
-  color: string; 
-  label: string;
-}) {
+function ResourceBar({ resources }: { resources?: PlayerResources }) {
+  const metal = Math.max(0, resources?.metal ?? 0);
+  const crystal = Math.max(0, resources?.crystal ?? 0);
+  const oxygen = Math.max(0, resources?.oxygen ?? 0);
+  const energy = Math.max(0, (resources?.energyProduction ?? 0) - (resources?.energyConsumption ?? 0));
+  
+  const maxResource = 100000;
+  
   return (
-    <View style={styles.resourceSummary}>
-      <View style={[styles.resourceSummaryIcon, { borderColor: color }]}>
-        <Image source={icon} style={styles.resourceSummaryImage} resizeMode="contain" />
+    <View style={styles.resourceBar}>
+      <View style={styles.resourceItem}>
+        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(metal, maxResource) }]} />
+        <ThemedText style={styles.resourceLabel}>Metal</ThemedText>
+        <ThemedText style={[styles.resourceValue, { color: getResourceColor(metal, maxResource) }]}>
+          {formatNumber(metal)}
+        </ThemedText>
       </View>
-      <View style={styles.resourceSummaryInfo}>
-        <ThemedText style={[styles.resourceSummaryRate, { color }]}>+{formatNumber(rate)}/h</ThemedText>
-        <ThemedText style={styles.resourceSummaryLabel}>{label}</ThemedText>
+      
+      <View style={styles.resourceDivider} />
+      
+      <View style={styles.resourceItem}>
+        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(crystal, maxResource) }]} />
+        <ThemedText style={styles.resourceLabel}>Crystal</ThemedText>
+        <ThemedText style={[styles.resourceValue, { color: getResourceColor(crystal, maxResource) }]}>
+          {formatNumber(crystal)}
+        </ThemedText>
+      </View>
+      
+      <View style={styles.resourceDivider} />
+      
+      <View style={styles.resourceItem}>
+        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(oxygen, maxResource) }]} />
+        <ThemedText style={styles.resourceLabel}>O2</ThemedText>
+        <ThemedText style={[styles.resourceValue, { color: getResourceColor(oxygen, maxResource) }]}>
+          {formatNumber(oxygen)}
+        </ThemedText>
+      </View>
+      
+      <View style={styles.resourceDivider} />
+      
+      <View style={styles.resourceItem}>
+        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(Math.max(0, energy), maxResource) }]} />
+        <ThemedText style={styles.resourceLabel}>Energy</ThemedText>
+        <ThemedText style={[styles.resourceValue, { color: getResourceColor(Math.max(0, energy), maxResource) }]}>
+          {formatNumber(Math.max(0, energy))}
+        </ThemedText>
       </View>
     </View>
   );
@@ -276,7 +288,6 @@ function ResourceSummary({
 
 export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPress }: ZoomedOutPlanetProps) {
   const rotation = useSharedValue(0);
-  const planetPulse = useSharedValue(0);
   const cityGlow = useSharedValue(0);
   const cityScale = useSharedValue(1);
 
@@ -287,11 +298,6 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
       withTiming(360, { duration: 180000, easing: Easing.linear }),
       -1,
       false
-    );
-    planetPulse.value = withRepeat(
-      withTiming(1, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
     );
     cityGlow.value = withRepeat(
       withSequence(
@@ -330,34 +336,10 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
     b.buildingType === BUILDING_TYPES.OXYGEN_PROCESSOR ||
     b.buildingType === BUILDING_TYPES.ENERGY_PLANT
   );
-  
-  const facilityCount = buildings.filter(b => 
-    b.buildingType === BUILDING_TYPES.RESEARCH_LAB ||
-    b.buildingType === BUILDING_TYPES.FLEET_DOCK
-  ).length;
 
   return (
     <View style={styles.container}>
-      <View style={styles.resourceSummaryContainer}>
-        <ResourceSummary
-          icon={require("../../assets/images/resource-metal.png")}
-          rate={resources?.metalRate ?? 0}
-          color={GameColors.metal}
-          label="Metal"
-        />
-        <ResourceSummary
-          icon={require("../../assets/images/resource-crystal.png")}
-          rate={resources?.crystalRate ?? 0}
-          color={GameColors.crystal}
-          label="Crystal"
-        />
-        <ResourceSummary
-          icon={require("../../assets/images/resource-oxygen.png")}
-          rate={resources?.oxygenRate ?? 0}
-          color={GameColors.oxygen}
-          label="Oxygen"
-        />
-      </View>
+      <ResourceBar resources={resources} />
 
       <View style={styles.planetContainer}>
         <Animated.View style={[styles.atmosphereRing, rotationStyle]} />
@@ -423,46 +405,43 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
   },
-  resourceSummaryContainer: {
+  resourceBar: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: Spacing.sm,
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.85)",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  resourceSummary: {
+  resourceItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.7)",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-    gap: 6,
+    gap: 4,
   },
-  resourceSummaryIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: GameColors.surface,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  resourceIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  resourceSummaryImage: {
-    width: 12,
-    height: 12,
+  resourceLabel: {
+    fontSize: 8,
+    fontFamily: "Inter_500Medium",
+    color: GameColors.textSecondary,
+    marginRight: 2,
   },
-  resourceSummaryInfo: {
-    alignItems: "flex-start",
-  },
-  resourceSummaryRate: {
-    fontSize: 9,
+  resourceValue: {
+    fontSize: 10,
     fontWeight: "700",
     fontFamily: "Orbitron_700Bold",
   },
-  resourceSummaryLabel: {
-    fontSize: 7,
-    fontFamily: "Inter_400Regular",
-    color: GameColors.textSecondary,
+  resourceDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginHorizontal: Spacing.sm,
   },
   planetContainer: {
     width: PLANET_SIZE,
