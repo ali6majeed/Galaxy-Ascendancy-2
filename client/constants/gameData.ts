@@ -24,6 +24,25 @@ export const BUILDING_TYPES = {
   RESEARCH_LAB: "research_lab",
 } as const;
 
+export const BUILDING_CATEGORIES = {
+  RESOURCES: "resources",
+  BUILDINGS: "buildings",
+} as const;
+
+export type BuildingCategory = (typeof BUILDING_CATEGORIES)[keyof typeof BUILDING_CATEGORIES];
+
+export const RESOURCE_BUILDINGS: BuildingType[] = [
+  BUILDING_TYPES.METAL_MINE,
+  BUILDING_TYPES.CRYSTAL_REFINERY,
+  BUILDING_TYPES.OXYGEN_PROCESSOR,
+  BUILDING_TYPES.ENERGY_PLANT,
+];
+
+export const FACILITY_BUILDINGS: BuildingType[] = [
+  BUILDING_TYPES.RESEARCH_LAB,
+  BUILDING_TYPES.FLEET_DOCK,
+];
+
 export type BuildingType = (typeof BUILDING_TYPES)[keyof typeof BUILDING_TYPES];
 
 export interface BuildingDefinition {
