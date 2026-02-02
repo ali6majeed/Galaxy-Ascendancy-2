@@ -219,15 +219,11 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
         
         {isEmpty ? (
           <View style={styles.emptyOverlay}>
-            <View style={[styles.buildIndicator, { backgroundColor: color }]}>
-              <Feather name="plus" size={14} color="#FFF" />
-            </View>
+            <View style={[styles.emptyShadow, { shadowColor: color }]} />
           </View>
         ) : (
           <>
-            <View style={[styles.levelBadge, { backgroundColor: color }]}>
-              <ThemedText style={styles.levelText}>{building.level}</ThemedText>
-            </View>
+            <ThemedText style={[styles.levelNumber, { color }]}>{building.level}</ThemedText>
             {building.isConstructing ? (
               <View style={styles.constructingIndicator}>
                 <Feather name="loader" size={10} color={GameColors.warning} />
@@ -348,7 +344,7 @@ export function ZoomedOutPlanet({ resources, buildings, onCityPress, onFieldPres
         
         <View style={styles.planetWrapper}>
           <Image
-            source={require("../../assets/images/planet-surface-layer.png")}
+            source={require("../../assets/images/planet-resources.png")}
             style={styles.planetImage}
             resizeMode="cover"
           />
@@ -510,30 +506,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buildIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.5)",
+  emptyShadow: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  levelBadge: {
+  levelNumber: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 8,
-    minWidth: 18,
-    alignItems: "center",
-  },
-  levelText: {
-    fontSize: 9,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "900",
     fontFamily: "Orbitron_700Bold",
-    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   constructingIndicator: {
     position: "absolute",
