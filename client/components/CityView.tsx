@@ -1,10 +1,17 @@
-import React from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import React, { useEffect } from "react";
+import { View, StyleSheet, Dimensions, Pressable } from "react-native";
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
-import { BuildingCard } from "@/components/BuildingCard";
 import { ThemedText } from "@/components/ThemedText";
-import { EmptyState } from "@/components/EmptyState";
 import { GameColors, Spacing, BorderRadius } from "@/constants/theme";
 import {
   BuildingType,
@@ -13,7 +20,10 @@ import {
   BUILDING_MAX_SLOTS,
 } from "@/constants/gameData";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const MAP_SIZE = Math.min(SCREEN_WIDTH - 40, SCREEN_HEIGHT * 0.65);
+const BUILDING_SIZE = 56;
+const SMALL_BUILDING_SIZE = 48;
 
 interface Building {
   id: string;
@@ -29,70 +39,206 @@ interface CityViewProps {
   onEmptySlotPress: (buildingType: BuildingType, slotIndex: number) => void;
 }
 
-const RESOURCE_BUILDING_TYPES: BuildingType[] = [
-  BUILDING_TYPES.METAL_MINE,
-  BUILDING_TYPES.CRYSTAL_REFINERY,
-  BUILDING_TYPES.OXYGEN_PROCESSOR,
-  BUILDING_TYPES.ENERGY_PLANT,
-];
-
-const FACILITY_BUILDING_TYPES: BuildingType[] = [
-  BUILDING_TYPES.RESEARCH_LAB,
-  BUILDING_TYPES.FLEET_DOCK,
-];
-
-interface EmptyBuildingSlotProps {
-  buildingType: BuildingType;
-  slotIndex: number;
-  totalSlots: number;
-  onPress: () => void;
+interface BuildingPosition {
+  x: number;
+  y: number;
+  size: number;
 }
 
-function EmptyBuildingSlot({ buildingType, slotIndex, totalSlots, onPress }: EmptyBuildingSlotProps) {
+const BUILDING_ICONS: Record<BuildingType, keyof typeof Feather.glyphMap> = {
+  [BUILDING_TYPES.METAL_MINE]: "box",
+  [BUILDING_TYPES.CRYSTAL_REFINERY]: "hexagon",
+  [BUILDING_TYPES.OXYGEN_PROCESSOR]: "wind",
+  [BUILDING_TYPES.ENERGY_PLANT]: "zap",
+  [BUILDING_TYPES.RESEARCH_LAB]: "cpu",
+  [BUILDING_TYPES.FLEET_DOCK]: "navigation",
+};
+
+const BUILDING_COLORS: Record<BuildingType, string> = {
+  [BUILDING_TYPES.METAL_MINE]: "#8B7355",
+  [BUILDING_TYPES.CRYSTAL_REFINERY]: "#9B59B6",
+  [BUILDING_TYPES.OXYGEN_PROCESSOR]: "#3498DB",
+  [BUILDING_TYPES.ENERGY_PLANT]: "#F39C12",
+  [BUILDING_TYPES.RESEARCH_LAB]: "#1ABC9C",
+  [BUILDING_TYPES.FLEET_DOCK]: "#E74C3C",
+};
+
+function getBuildingPositions(): Record<string, BuildingPosition> {
+  const centerX = MAP_SIZE / 2;
+  const centerY = MAP_SIZE / 2;
+  const positions: Record<string, BuildingPosition> = {};
+  
+  const metalPositions = [
+    { x: centerX - 90, y: centerY - 100 },
+    { x: centerX - 30, y: centerY - 130 },
+    { x: centerX + 30, y: centerY - 100 },
+    { x: centerX + 90, y: centerY - 130 },
+  ];
+  metalPositions.forEach((pos, i) => {
+    positions[`metal_mine-${i}`] = { ...pos, size: BUILDING_SIZE };
+  });
+  
+  const crystalPositions = [
+    { x: centerX + 80, y: centerY - 40 },
+    { x: centerX + 110, y: centerY + 20 },
+    { x: centerX + 80, y: centerY + 80 },
+    { x: centerX + 110, y: centerY + 140 },
+  ];
+  crystalPositions.forEach((pos, i) => {
+    positions[`crystal_refinery-${i}`] = { ...pos, size: BUILDING_SIZE };
+  });
+  
+  const oxygenPositions = [
+    { x: centerX - 100, y: centerY - 30 },
+    { x: centerX - 130, y: centerY + 30 },
+    { x: centerX - 100, y: centerY + 90 },
+    { x: centerX - 130, y: centerY + 150 },
+    { x: centerX - 60, y: centerY + 120 },
+    { x: centerX - 60, y: centerY + 180 },
+  ];
+  oxygenPositions.forEach((pos, i) => {
+    positions[`oxygen_processor-${i}`] = { ...pos, size: SMALL_BUILDING_SIZE };
+  });
+  
+  const energyPositions = [
+    { x: centerX - 40, y: centerY - 40 },
+    { x: centerX + 20, y: centerY - 20 },
+    { x: centerX - 20, y: centerY + 30 },
+    { x: centerX + 40, y: centerY + 50 },
+  ];
+  energyPositions.forEach((pos, i) => {
+    positions[`energy_plant-${i}`] = { ...pos, size: BUILDING_SIZE };
+  });
+  
+  positions[`research_lab-0`] = { x: centerX - 30, y: centerY + 100, size: BUILDING_SIZE + 8 };
+  positions[`fleet_dock-0`] = { x: centerX + 30, y: centerY + 160, size: BUILDING_SIZE + 8 };
+  
+  return positions;
+}
+
+interface BuildingNodeProps {
+  buildingType: BuildingType;
+  slotIndex: number;
+  building?: Building;
+  position: BuildingPosition;
+  onPress: () => void;
+  canUpgrade: boolean;
+}
+
+function BuildingNode({ buildingType, slotIndex, building, position, onPress, canUpgrade }: BuildingNodeProps) {
+  const pulseAnim = useSharedValue(1);
+  const glowAnim = useSharedValue(0.3);
+  
+  useEffect(() => {
+    if (canUpgrade && building) {
+      pulseAnim.value = withRepeat(
+        withTiming(1.08, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+      glowAnim.value = withRepeat(
+        withTiming(0.8, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+    }
+  }, [canUpgrade, building]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnim.value }],
+  }));
+  
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowAnim.value,
+  }));
+  
+  const icon = BUILDING_ICONS[buildingType];
+  const color = BUILDING_COLORS[buildingType];
   const definition = BUILDING_DEFINITIONS[buildingType];
-  const slotLabel = totalSlots > 1 ? ` #${slotIndex + 1}` : "";
+  const isEmpty = !building;
   
   return (
-    <View style={styles.emptySlot}>
-      <View style={styles.emptySlotContent}>
-        <View style={styles.emptyIconContainer}>
-          <ThemedText style={styles.emptyPlusIcon}>+</ThemedText>
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.buildingNode,
+        {
+          left: position.x - position.size / 2,
+          top: position.y - position.size / 2,
+          width: position.size,
+          height: position.size,
+        },
+      ]}
+    >
+      {canUpgrade && building ? (
+        <Animated.View style={[styles.glowEffect, glowStyle, { backgroundColor: color }]} />
+      ) : null}
+      
+      <Animated.View style={[styles.buildingInner, isEmpty ? styles.emptyBuilding : null, animatedStyle]}>
+        {isEmpty ? (
+          <View style={[styles.emptyBuildingContent, { borderColor: color }]}>
+            <Feather name="plus" size={20} color={color} />
+          </View>
+        ) : (
+          <LinearGradient
+            colors={[color, `${color}99`]}
+            style={styles.buildingGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Feather name={icon} size={position.size > 50 ? 22 : 18} color="#FFFFFF" />
+            <View style={styles.levelBadge}>
+              <ThemedText style={styles.levelText}>{building.level}</ThemedText>
+            </View>
+            {building.isConstructing ? (
+              <View style={styles.constructingIndicator}>
+                <Feather name="loader" size={12} color="#FFF" />
+              </View>
+            ) : null}
+          </LinearGradient>
+        )}
+      </Animated.View>
+      
+      {canUpgrade && building ? (
+        <View style={styles.upgradeArrow}>
+          <Feather name="arrow-up" size={12} color={GameColors.success} />
         </View>
-        <View style={styles.emptySlotInfo}>
-          <ThemedText style={styles.emptySlotTitle}>{definition.name}{slotLabel}</ThemedText>
-          <ThemedText style={styles.emptySlotDescription} numberOfLines={1}>
-            {definition.description}
-          </ThemedText>
-        </View>
-      </View>
-      <ThemedText style={styles.buildButton} onPress={onPress}>
-        BUILD
-      </ThemedText>
-    </View>
+      ) : null}
+    </Pressable>
   );
 }
 
 interface SlotItem {
-  type: "building" | "empty";
   buildingType: BuildingType;
   slotIndex: number;
   building?: Building;
+  position: BuildingPosition;
 }
 
-function getSlotItems(buildingTypes: BuildingType[], buildings: Building[]): SlotItem[] {
+function getAllSlots(buildings: Building[]): SlotItem[] {
+  const positions = getBuildingPositions();
   const slots: SlotItem[] = [];
+  
+  const buildingTypes: BuildingType[] = [
+    BUILDING_TYPES.METAL_MINE,
+    BUILDING_TYPES.CRYSTAL_REFINERY,
+    BUILDING_TYPES.OXYGEN_PROCESSOR,
+    BUILDING_TYPES.ENERGY_PLANT,
+    BUILDING_TYPES.RESEARCH_LAB,
+    BUILDING_TYPES.FLEET_DOCK,
+  ];
   
   for (const buildingType of buildingTypes) {
     const maxSlots = BUILDING_MAX_SLOTS[buildingType];
     const existingBuildings = buildings.filter(b => b.buildingType === buildingType);
-    const existingSlotIndexes = new Set(existingBuildings.map(b => b.slotIndex));
     
     for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
       const building = existingBuildings.find(b => b.slotIndex === slotIndex);
-      if (building) {
-        slots.push({ type: "building", buildingType, slotIndex, building });
-      } else {
-        slots.push({ type: "empty", buildingType, slotIndex });
+      const posKey = `${buildingType}-${slotIndex}`;
+      const position = positions[posKey];
+      
+      if (position) {
+        slots.push({ buildingType, slotIndex, building, position });
       }
     }
   }
@@ -101,85 +247,95 @@ function getSlotItems(buildingTypes: BuildingType[], buildings: Building[]): Slo
 }
 
 export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityViewProps) {
-  const resourceSlots = getSlotItems(RESOURCE_BUILDING_TYPES, buildings);
-  const facilitySlots = getSlotItems(FACILITY_BUILDING_TYPES, buildings);
+  const slots = getAllSlots(buildings);
 
   return (
     <View style={styles.container}>
-      <Animated.View entering={FadeInDown.delay(0).duration(300)}>
+      <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
         <ThemedText style={styles.viewTitle}>City Overview</ThemedText>
         <ThemedText style={styles.viewSubtitle}>
-          Manage all your structures and facilities
+          Tap buildings to upgrade or construct new ones
         </ThemedText>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Resource Buildings</ThemedText>
-        <View style={styles.buildingList}>
-          {resourceSlots.map((slot, index) => (
+      <View style={styles.mapContainer}>
+        <View style={[styles.cityMap, { width: MAP_SIZE, height: MAP_SIZE }]}>
+          <View style={styles.mapBackground}>
+            <View style={styles.gridLine} />
+            <View style={[styles.gridLine, styles.gridLineHorizontal]} />
+            <View style={styles.centerMarker} />
+          </View>
+          
+          <View style={styles.zoneLabelContainer}>
+            <View style={[styles.zoneLabel, { top: 10, left: MAP_SIZE / 2 - 40 }]}>
+              <ThemedText style={[styles.zoneLabelText, { color: BUILDING_COLORS[BUILDING_TYPES.METAL_MINE] }]}>
+                MINING
+              </ThemedText>
+            </View>
+            <View style={[styles.zoneLabel, { top: MAP_SIZE / 2 - 10, right: 5 }]}>
+              <ThemedText style={[styles.zoneLabelText, { color: BUILDING_COLORS[BUILDING_TYPES.CRYSTAL_REFINERY] }]}>
+                CRYSTAL
+              </ThemedText>
+            </View>
+            <View style={[styles.zoneLabel, { top: MAP_SIZE / 2 - 10, left: 5 }]}>
+              <ThemedText style={[styles.zoneLabelText, { color: BUILDING_COLORS[BUILDING_TYPES.OXYGEN_PROCESSOR] }]}>
+                OXYGEN
+              </ThemedText>
+            </View>
+            <View style={[styles.zoneLabel, { bottom: 30, left: MAP_SIZE / 2 - 30 }]}>
+              <ThemedText style={[styles.zoneLabelText, { color: BUILDING_COLORS[BUILDING_TYPES.FLEET_DOCK] }]}>
+                FLEET
+              </ThemedText>
+            </View>
+          </View>
+          
+          {slots.map((slot, index) => (
             <Animated.View
               key={`${slot.buildingType}-${slot.slotIndex}`}
-              entering={FadeInDown.delay(150 + index * 30).duration(300)}
+              entering={FadeIn.delay(100 + index * 20).duration(300)}
+              style={styles.nodeWrapper}
             >
-              {slot.type === "building" && slot.building ? (
-                <BuildingCard
-                  buildingType={slot.building.buildingType}
-                  level={slot.building.level}
-                  isConstructing={slot.building.isConstructing}
-                  slotIndex={slot.slotIndex}
-                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
-                  onPress={() => onBuildingPress(slot.building!)}
-                />
-              ) : (
-                <EmptyBuildingSlot
-                  buildingType={slot.buildingType}
-                  slotIndex={slot.slotIndex}
-                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
-                  onPress={() => onEmptySlotPress(slot.buildingType, slot.slotIndex)}
-                />
-              )}
+              <BuildingNode
+                buildingType={slot.buildingType}
+                slotIndex={slot.slotIndex}
+                building={slot.building}
+                position={slot.position}
+                canUpgrade={!!slot.building && !slot.building.isConstructing}
+                onPress={() => {
+                  if (slot.building) {
+                    onBuildingPress(slot.building);
+                  } else {
+                    onEmptySlotPress(slot.buildingType, slot.slotIndex);
+                  }
+                }}
+              />
             </Animated.View>
           ))}
         </View>
-      </Animated.View>
+      </View>
 
-      <Animated.View entering={FadeInDown.delay(300).duration(300)} style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Facilities & Fleet</ThemedText>
-        <View style={styles.buildingList}>
-          {facilitySlots.map((slot, index) => (
-            <Animated.View
-              key={`${slot.buildingType}-${slot.slotIndex}`}
-              entering={FadeInDown.delay(350 + index * 30).duration(300)}
-            >
-              {slot.type === "building" && slot.building ? (
-                <BuildingCard
-                  buildingType={slot.building.buildingType}
-                  level={slot.building.level}
-                  isConstructing={slot.building.isConstructing}
-                  slotIndex={slot.slotIndex}
-                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
-                  onPress={() => onBuildingPress(slot.building!)}
-                />
-              ) : (
-                <EmptyBuildingSlot
-                  buildingType={slot.buildingType}
-                  slotIndex={slot.slotIndex}
-                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
-                  onPress={() => onEmptySlotPress(slot.buildingType, slot.slotIndex)}
-                />
-              )}
-            </Animated.View>
+      <View style={styles.legend}>
+        <View style={styles.legendRow}>
+          {Object.entries(BUILDING_COLORS).slice(0, 3).map(([type, color]) => (
+            <View key={type} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: color }]} />
+              <ThemedText style={styles.legendText}>
+                {BUILDING_DEFINITIONS[type as BuildingType].name.split(" ")[0]}
+              </ThemedText>
+            </View>
           ))}
         </View>
-      </Animated.View>
-
-      {resourceSlots.length === 0 && facilitySlots.length === 0 ? (
-        <EmptyState
-          image={require("../../assets/images/empty-construction.png")}
-          title="No Buildings Available"
-          description="Something went wrong. Please refresh."
-        />
-      ) : null}
+        <View style={styles.legendRow}>
+          {Object.entries(BUILDING_COLORS).slice(3).map(([type, color]) => (
+            <View key={type} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: color }]} />
+              <ThemedText style={styles.legendText}>
+                {BUILDING_DEFINITIONS[type as BuildingType].name.split(" ")[0]}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
@@ -187,6 +343,11 @@ export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityV
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: "center",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: Spacing.md,
   },
   viewTitle: {
     fontSize: 22,
@@ -202,76 +363,145 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: Spacing.xs,
   },
-  section: {
-    marginTop: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-  buildingList: {
-    gap: Spacing.sm,
-  },
-  emptySlot: {
-    backgroundColor: GameColors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 2,
-    borderColor: GameColors.textTertiary,
-    borderStyle: "dashed",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  emptySlotContent: {
-    flexDirection: "row",
-    alignItems: "center",
+  mapContainer: {
     flex: 1,
-    gap: Spacing.md,
-  },
-  emptyIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: GameColors.background,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  cityMap: {
+    position: "relative",
+    backgroundColor: "rgba(20, 25, 35, 0.8)",
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: GameColors.textTertiary,
   },
-  emptyPlusIcon: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: GameColors.textSecondary,
-    fontFamily: "Orbitron_700Bold",
+  mapBackground: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  emptySlotInfo: {
-    flex: 1,
+  gridLine: {
+    position: "absolute",
+    width: 1,
+    height: "80%",
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
-  emptySlotTitle: {
-    fontSize: 14,
-    fontWeight: "600",
+  gridLineHorizontal: {
+    width: "80%",
+    height: 1,
+  },
+  centerMarker: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  zoneLabelContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  zoneLabel: {
+    position: "absolute",
+  },
+  zoneLabelText: {
+    fontSize: 9,
     fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.textSecondary,
+    opacity: 0.6,
+    letterSpacing: 1,
   },
-  emptySlotDescription: {
-    fontSize: 11,
-    color: GameColors.textTertiary,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+  nodeWrapper: {
+    position: "absolute",
   },
-  buildButton: {
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: "rgba(10, 132, 255, 0.15)",
-    borderRadius: BorderRadius.sm,
+  buildingNode: {
+    position: "absolute",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  glowEffect: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: BorderRadius.md,
+    transform: [{ scale: 1.4 }],
+  },
+  buildingInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: BorderRadius.md,
     overflow: "hidden",
+  },
+  emptyBuilding: {
+    backgroundColor: "transparent",
+  },
+  emptyBuildingContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderRadius: BorderRadius.md,
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  buildingGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: BorderRadius.md,
+  },
+  levelBadge: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  levelText: {
+    fontSize: 9,
+    fontWeight: "700",
+    fontFamily: "Orbitron_700Bold",
+    color: "#FFFFFF",
+  },
+  constructingIndicator: {
+    position: "absolute",
+    top: 2,
+    left: 2,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    padding: 2,
+    borderRadius: 4,
+  },
+  upgradeArrow: {
+    position: "absolute",
+    top: -8,
+    right: -4,
+    backgroundColor: "rgba(46, 204, 113, 0.9)",
+    borderRadius: 10,
+    padding: 2,
+  },
+  legend: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: "rgba(20, 25, 35, 0.6)",
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  legendRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.md,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    color: GameColors.textSecondary,
   },
 });
