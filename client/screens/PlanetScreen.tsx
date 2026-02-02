@@ -142,6 +142,15 @@ export default function PlanetScreen() {
     setModalVisible(true);
   };
 
+  const handleFieldPress = (buildingType: BuildingType, slotIndex: number, building?: Building) => {
+    if (building) {
+      setSelectedBuilding(building);
+    } else {
+      setSelectedBuilding({ id: "", buildingType, slotIndex, level: 0, isConstructing: false });
+    }
+    setModalVisible(true);
+  };
+
   const handleUpgrade = (buildingType: BuildingType, slotIndex: number = 0) => {
     upgradeMutation.mutate({ buildingType, slotIndex });
   };
@@ -239,6 +248,7 @@ export default function PlanetScreen() {
                 resources={resources}
                 buildings={buildings || []}
                 onCityPress={handleCityPress}
+                onFieldPress={handleFieldPress}
               />
             </Animated.View>
           ) : (
