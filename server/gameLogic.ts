@@ -121,17 +121,19 @@ export async function calculateResourceRates(planetId: string): Promise<{
   metalRate: number;
   crystalRate: number;
   oxygenRate: number;
-  energyRate: number;
-  energyCapacity: number;
-  totalEnergyConsumption: number;
+  energyProduction: number;
+  energyConsumption: number;
+  energyEfficiency: number;
+  effectiveMetalRate: number;
+  effectiveCrystalRate: number;
+  effectiveOxygenRate: number;
 }> {
   const buildings = await storage.getBuildings(planetId);
   
-  let metalRate = 20;
-  let crystalRate = 10;
-  let oxygenRate = 5;
-  let energyRate = 0;
-  let energyCapacity = 100;
+  let baseMetalRate = 20;
+  let baseCrystalRate = 10;
+  let baseOxygenRate = 5;
+  let energyProduction = 0;
   let totalEnergyConsumption = 0;
 
   for (const building of buildings) {
@@ -145,30 +147,36 @@ export async function calculateResourceRates(planetId: string): Promise<{
 
     switch (def.resourceType) {
       case "metal":
-        metalRate += production;
+        baseMetalRate += production;
         break;
       case "crystal":
-        crystalRate += production;
+        baseCrystalRate += production;
         break;
       case "oxygen":
-        oxygenRate += production;
+        baseOxygenRate += production;
         break;
       case "energy":
-        energyRate += production;
-        energyCapacity += production * 2;
+        energyProduction += production;
         break;
     }
 
     totalEnergyConsumption += energyConsumption;
   }
 
+  const energyEfficiency = totalEnergyConsumption > 0 
+    ? Math.min(1, energyProduction / totalEnergyConsumption)
+    : 1;
+
   return {
-    metalRate,
-    crystalRate,
-    oxygenRate,
-    energyRate,
-    energyCapacity,
-    totalEnergyConsumption,
+    metalRate: baseMetalRate,
+    crystalRate: baseCrystalRate,
+    oxygenRate: baseOxygenRate,
+    energyProduction,
+    energyConsumption: totalEnergyConsumption,
+    energyEfficiency,
+    effectiveMetalRate: Math.floor(baseMetalRate * energyEfficiency),
+    effectiveCrystalRate: Math.floor(baseCrystalRate * energyEfficiency),
+    effectiveOxygenRate: Math.floor(baseOxygenRate * energyEfficiency),
   };
 }
 
@@ -188,25 +196,16 @@ export async function updatePlanetResources(planetId: string): Promise<Planet> {
 
   const rates = await calculateResourceRates(planetId);
   
-  const energyAvailable = planet.energy;
-  const energyEfficiency = rates.totalEnergyConsumption > 0 
-    ? Math.min(1, energyAvailable / rates.totalEnergyConsumption) 
-    : 1;
-
-  const newMetal = planet.metal + rates.metalRate * hoursPassed * energyEfficiency;
-  const newCrystal = planet.crystal + rates.crystalRate * hoursPassed * energyEfficiency;
-  const newOxygen = planet.oxygen + rates.oxygenRate * hoursPassed * energyEfficiency;
-  const newEnergy = Math.min(
-    rates.energyCapacity,
-    planet.energy + (rates.energyRate - rates.totalEnergyConsumption) * hoursPassed
-  );
+  const newMetal = planet.metal + rates.effectiveMetalRate * hoursPassed;
+  const newCrystal = planet.crystal + rates.effectiveCrystalRate * hoursPassed;
+  const newOxygen = planet.oxygen + rates.effectiveOxygenRate * hoursPassed;
 
   return storage.updatePlanetResources(planetId, {
     metal: newMetal,
     crystal: newCrystal,
     oxygen: newOxygen,
-    energy: Math.max(0, newEnergy),
-    energyCapacity: rates.energyCapacity,
+    energy: rates.energyProduction,
+    energyCapacity: rates.energyConsumption,
     lastResourceUpdate: now,
   });
 }

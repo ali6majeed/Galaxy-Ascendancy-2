@@ -29,12 +29,15 @@ interface PlayerResources {
   metal: number;
   crystal: number;
   oxygen: number;
-  energy: number;
-  energyCapacity: number;
+  energyProduction: number;
+  energyConsumption: number;
+  energyEfficiency: number;
   metalRate: number;
   crystalRate: number;
   oxygenRate: number;
-  energyRate: number;
+  baseMetalRate: number;
+  baseCrystalRate: number;
+  baseOxygenRate: number;
 }
 
 interface Building {
@@ -149,12 +152,12 @@ export default function PlanetScreen() {
             metal={resources?.metal ?? 0}
             crystal={resources?.crystal ?? 0}
             oxygen={resources?.oxygen ?? 0}
-            energy={resources?.energy ?? 0}
-            energyCapacity={resources?.energyCapacity ?? 0}
+            energyProduction={resources?.energyProduction ?? 0}
+            energyConsumption={resources?.energyConsumption ?? 0}
+            energyEfficiency={resources?.energyEfficiency ?? 100}
             metalRate={resources?.metalRate ?? 0}
             crystalRate={resources?.crystalRate ?? 0}
             oxygenRate={resources?.oxygenRate ?? 0}
-            energyRate={resources?.energyRate ?? 0}
           />
         </Animated.View>
 
@@ -222,8 +225,8 @@ export default function PlanetScreen() {
           metal: resources?.metal ?? 0,
           crystal: resources?.crystal ?? 0,
           oxygen: resources?.oxygen ?? 0,
-          energy: resources?.energy ?? 0,
-          energyCapacity: resources?.energyCapacity ?? 0,
+          energyProduction: resources?.energyProduction ?? 0,
+          energyConsumption: resources?.energyConsumption ?? 0,
         }}
         onUpgrade={handleUpgrade}
         isUpgrading={upgradeMutation.isPending}

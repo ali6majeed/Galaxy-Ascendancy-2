@@ -49,8 +49,8 @@ interface BuildingDetailModalProps {
     metal: number;
     crystal: number;
     oxygen: number;
-    energy: number;
-    energyCapacity: number;
+    energyProduction: number;
+    energyConsumption: number;
   };
   onUpgrade: (buildingType: BuildingType) => void;
   isUpgrading?: boolean;

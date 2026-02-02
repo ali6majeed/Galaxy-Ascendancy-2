@@ -65,12 +65,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metal: Math.floor(updatedPlanet.metal),
         crystal: Math.floor(updatedPlanet.crystal),
         oxygen: Math.floor(updatedPlanet.oxygen),
-        energy: Math.floor(updatedPlanet.energy),
-        energyCapacity: Math.floor(rates.energyCapacity),
-        metalRate: rates.metalRate,
-        crystalRate: rates.crystalRate,
-        oxygenRate: rates.oxygenRate,
-        energyRate: rates.energyRate - rates.totalEnergyConsumption,
+        energyProduction: rates.energyProduction,
+        energyConsumption: rates.energyConsumption,
+        energyEfficiency: Math.round(rates.energyEfficiency * 100),
+        metalRate: rates.effectiveMetalRate,
+        crystalRate: rates.effectiveCrystalRate,
+        oxygenRate: rates.effectiveOxygenRate,
+        baseMetalRate: rates.metalRate,
+        baseCrystalRate: rates.crystalRate,
+        baseOxygenRate: rates.oxygenRate,
       });
     } catch (error) {
       console.error("Error fetching resources:", error);
