@@ -49,6 +49,7 @@ interface PlayerResources {
 interface Building {
   id: string;
   buildingType: BuildingType;
+  slotIndex: number;
   level: number;
   isConstructing: boolean;
 }
@@ -89,8 +90,8 @@ export default function PlanetScreen() {
   });
 
   const upgradeMutation = useMutation({
-    mutationFn: async (buildingType: BuildingType) => {
-      const response = await apiRequest("POST", "/api/buildings/upgrade", { buildingType });
+    mutationFn: async ({ buildingType, slotIndex }: { buildingType: BuildingType; slotIndex: number }) => {
+      const response = await apiRequest("POST", "/api/buildings/upgrade", { buildingType, slotIndex });
       return response.json();
     },
     onSuccess: () => {
@@ -136,13 +137,13 @@ export default function PlanetScreen() {
     setModalVisible(true);
   };
 
-  const handleEmptySlotPress = (buildingType: BuildingType) => {
-    setSelectedBuilding({ id: "", buildingType, level: 0, isConstructing: false });
+  const handleEmptySlotPress = (buildingType: BuildingType, slotIndex: number = 0) => {
+    setSelectedBuilding({ id: "", buildingType, slotIndex, level: 0, isConstructing: false });
     setModalVisible(true);
   };
 
-  const handleUpgrade = (buildingType: BuildingType) => {
-    upgradeMutation.mutate(buildingType);
+  const handleUpgrade = (buildingType: BuildingType, slotIndex: number = 0) => {
+    upgradeMutation.mutate({ buildingType, slotIndex });
   };
 
   const handleCloseModal = () => {
@@ -265,6 +266,7 @@ export default function PlanetScreen() {
         visible={modalVisible}
         onClose={handleCloseModal}
         buildingType={selectedBuilding?.buildingType || null}
+        slotIndex={selectedBuilding?.slotIndex ?? 0}
         level={selectedBuilding?.level ?? 0}
         resources={{
           metal: resources?.metal ?? 0,

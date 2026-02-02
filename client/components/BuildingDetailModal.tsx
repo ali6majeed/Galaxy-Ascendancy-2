@@ -44,6 +44,7 @@ interface BuildingDetailModalProps {
   visible: boolean;
   onClose: () => void;
   buildingType: BuildingType | null;
+  slotIndex: number;
   level: number;
   resources: {
     metal: number;
@@ -52,7 +53,7 @@ interface BuildingDetailModalProps {
     energyProduction: number;
     energyConsumption: number;
   };
-  onUpgrade: (buildingType: BuildingType) => void;
+  onUpgrade: (buildingType: BuildingType, slotIndex: number) => void;
   isUpgrading?: boolean;
 }
 
@@ -60,6 +61,7 @@ export function BuildingDetailModal({
   visible,
   onClose,
   buildingType,
+  slotIndex,
   level,
   resources,
   onUpgrade,
@@ -90,7 +92,7 @@ export function BuildingDetailModal({
   const handleUpgrade = () => {
     if (canAfford && !isUpgrading) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onUpgrade(buildingType);
+      onUpgrade(buildingType, slotIndex);
     }
   };
 

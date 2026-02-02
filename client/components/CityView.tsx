@@ -10,6 +10,7 @@ import {
   BuildingType,
   BUILDING_DEFINITIONS,
   BUILDING_TYPES,
+  BUILDING_MAX_SLOTS,
 } from "@/constants/gameData";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -17,6 +18,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 interface Building {
   id: string;
   buildingType: BuildingType;
+  slotIndex: number;
   level: number;
   isConstructing: boolean;
 }
@@ -24,25 +26,31 @@ interface Building {
 interface CityViewProps {
   buildings: Building[];
   onBuildingPress: (building: Building) => void;
-  onEmptySlotPress: (buildingType: BuildingType) => void;
+  onEmptySlotPress: (buildingType: BuildingType, slotIndex: number) => void;
 }
 
-const ALL_BUILDING_TYPES: BuildingType[] = [
+const RESOURCE_BUILDING_TYPES: BuildingType[] = [
   BUILDING_TYPES.METAL_MINE,
   BUILDING_TYPES.CRYSTAL_REFINERY,
   BUILDING_TYPES.OXYGEN_PROCESSOR,
   BUILDING_TYPES.ENERGY_PLANT,
+];
+
+const FACILITY_BUILDING_TYPES: BuildingType[] = [
   BUILDING_TYPES.RESEARCH_LAB,
   BUILDING_TYPES.FLEET_DOCK,
 ];
 
 interface EmptyBuildingSlotProps {
   buildingType: BuildingType;
+  slotIndex: number;
+  totalSlots: number;
   onPress: () => void;
 }
 
-function EmptyBuildingSlot({ buildingType, onPress }: EmptyBuildingSlotProps) {
+function EmptyBuildingSlot({ buildingType, slotIndex, totalSlots, onPress }: EmptyBuildingSlotProps) {
   const definition = BUILDING_DEFINITIONS[buildingType];
+  const slotLabel = totalSlots > 1 ? ` #${slotIndex + 1}` : "";
   
   return (
     <View style={styles.emptySlot}>
@@ -51,7 +59,7 @@ function EmptyBuildingSlot({ buildingType, onPress }: EmptyBuildingSlotProps) {
           <ThemedText style={styles.emptyPlusIcon}>+</ThemedText>
         </View>
         <View style={styles.emptySlotInfo}>
-          <ThemedText style={styles.emptySlotTitle}>{definition.name}</ThemedText>
+          <ThemedText style={styles.emptySlotTitle}>{definition.name}{slotLabel}</ThemedText>
           <ThemedText style={styles.emptySlotDescription} numberOfLines={1}>
             {definition.description}
           </ThemedText>
@@ -64,40 +72,37 @@ function EmptyBuildingSlot({ buildingType, onPress }: EmptyBuildingSlotProps) {
   );
 }
 
+interface SlotItem {
+  type: "building" | "empty";
+  buildingType: BuildingType;
+  slotIndex: number;
+  building?: Building;
+}
+
+function getSlotItems(buildingTypes: BuildingType[], buildings: Building[]): SlotItem[] {
+  const slots: SlotItem[] = [];
+  
+  for (const buildingType of buildingTypes) {
+    const maxSlots = BUILDING_MAX_SLOTS[buildingType];
+    const existingBuildings = buildings.filter(b => b.buildingType === buildingType);
+    const existingSlotIndexes = new Set(existingBuildings.map(b => b.slotIndex));
+    
+    for (let slotIndex = 0; slotIndex < maxSlots; slotIndex++) {
+      const building = existingBuildings.find(b => b.slotIndex === slotIndex);
+      if (building) {
+        slots.push({ type: "building", buildingType, slotIndex, building });
+      } else {
+        slots.push({ type: "empty", buildingType, slotIndex });
+      }
+    }
+  }
+  
+  return slots;
+}
+
 export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityViewProps) {
-  const existingBuildingTypes = new Set(buildings.map(b => b.buildingType));
-  
-  const emptySlots = ALL_BUILDING_TYPES.filter(
-    (type) => !existingBuildingTypes.has(type)
-  );
-
-  const resourceBuildingTypes: BuildingType[] = [
-    BUILDING_TYPES.METAL_MINE, 
-    BUILDING_TYPES.CRYSTAL_REFINERY, 
-    BUILDING_TYPES.OXYGEN_PROCESSOR, 
-    BUILDING_TYPES.ENERGY_PLANT
-  ];
-  
-  const facilityBuildingTypes: BuildingType[] = [
-    BUILDING_TYPES.RESEARCH_LAB, 
-    BUILDING_TYPES.FLEET_DOCK
-  ];
-
-  const resourceBuildings = buildings.filter(b => 
-    resourceBuildingTypes.includes(b.buildingType)
-  );
-
-  const facilityBuildings = buildings.filter(b => 
-    facilityBuildingTypes.includes(b.buildingType)
-  );
-
-  const emptyResourceSlots = emptySlots.filter(type =>
-    resourceBuildingTypes.includes(type)
-  );
-
-  const emptyFacilitySlots = emptySlots.filter(type =>
-    facilityBuildingTypes.includes(type)
-  );
+  const resourceSlots = getSlotItems(RESOURCE_BUILDING_TYPES, buildings);
+  const facilitySlots = getSlotItems(FACILITY_BUILDING_TYPES, buildings);
 
   return (
     <View style={styles.container}>
@@ -111,28 +116,28 @@ export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityV
       <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Resource Buildings</ThemedText>
         <View style={styles.buildingList}>
-          {resourceBuildings.map((building, index) => (
+          {resourceSlots.map((slot, index) => (
             <Animated.View
-              key={building.id}
-              entering={FadeInDown.delay(150 + index * 50).duration(300)}
+              key={`${slot.buildingType}-${slot.slotIndex}`}
+              entering={FadeInDown.delay(150 + index * 30).duration(300)}
             >
-              <BuildingCard
-                buildingType={building.buildingType}
-                level={building.level}
-                isConstructing={building.isConstructing}
-                onPress={() => onBuildingPress(building)}
-              />
-            </Animated.View>
-          ))}
-          {emptyResourceSlots.map((buildingType, index) => (
-            <Animated.View
-              key={buildingType}
-              entering={FadeInDown.delay(150 + (resourceBuildings.length + index) * 50).duration(300)}
-            >
-              <EmptyBuildingSlot
-                buildingType={buildingType}
-                onPress={() => onEmptySlotPress(buildingType)}
-              />
+              {slot.type === "building" && slot.building ? (
+                <BuildingCard
+                  buildingType={slot.building.buildingType}
+                  level={slot.building.level}
+                  isConstructing={slot.building.isConstructing}
+                  slotIndex={slot.slotIndex}
+                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
+                  onPress={() => onBuildingPress(slot.building!)}
+                />
+              ) : (
+                <EmptyBuildingSlot
+                  buildingType={slot.buildingType}
+                  slotIndex={slot.slotIndex}
+                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
+                  onPress={() => onEmptySlotPress(slot.buildingType, slot.slotIndex)}
+                />
+              )}
             </Animated.View>
           ))}
         </View>
@@ -141,34 +146,34 @@ export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityV
       <Animated.View entering={FadeInDown.delay(300).duration(300)} style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Facilities & Fleet</ThemedText>
         <View style={styles.buildingList}>
-          {facilityBuildings.map((building, index) => (
+          {facilitySlots.map((slot, index) => (
             <Animated.View
-              key={building.id}
-              entering={FadeInDown.delay(350 + index * 50).duration(300)}
+              key={`${slot.buildingType}-${slot.slotIndex}`}
+              entering={FadeInDown.delay(350 + index * 30).duration(300)}
             >
-              <BuildingCard
-                buildingType={building.buildingType}
-                level={building.level}
-                isConstructing={building.isConstructing}
-                onPress={() => onBuildingPress(building)}
-              />
-            </Animated.View>
-          ))}
-          {emptyFacilitySlots.map((buildingType, index) => (
-            <Animated.View
-              key={buildingType}
-              entering={FadeInDown.delay(350 + (facilityBuildings.length + index) * 50).duration(300)}
-            >
-              <EmptyBuildingSlot
-                buildingType={buildingType}
-                onPress={() => onEmptySlotPress(buildingType)}
-              />
+              {slot.type === "building" && slot.building ? (
+                <BuildingCard
+                  buildingType={slot.building.buildingType}
+                  level={slot.building.level}
+                  isConstructing={slot.building.isConstructing}
+                  slotIndex={slot.slotIndex}
+                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
+                  onPress={() => onBuildingPress(slot.building!)}
+                />
+              ) : (
+                <EmptyBuildingSlot
+                  buildingType={slot.buildingType}
+                  slotIndex={slot.slotIndex}
+                  totalSlots={BUILDING_MAX_SLOTS[slot.buildingType]}
+                  onPress={() => onEmptySlotPress(slot.buildingType, slot.slotIndex)}
+                />
+              )}
             </Animated.View>
           ))}
         </View>
       </Animated.View>
 
-      {buildings.length === 0 && emptySlots.length === 0 ? (
+      {resourceSlots.length === 0 && facilitySlots.length === 0 ? (
         <EmptyState
           image={require("../../assets/images/empty-construction.png")}
           title="No Buildings Available"

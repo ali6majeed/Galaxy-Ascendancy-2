@@ -31,6 +31,8 @@ interface BuildingCardProps {
   level: number;
   onPress: () => void;
   isConstructing?: boolean;
+  slotIndex?: number;
+  totalSlots?: number;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -40,6 +42,8 @@ export function BuildingCard({
   level,
   onPress,
   isConstructing = false,
+  slotIndex = 0,
+  totalSlots = 1,
 }: BuildingCardProps) {
   const scale = useSharedValue(1);
   const building = BUILDING_DEFINITIONS[buildingType];
@@ -98,7 +102,7 @@ export function BuildingCard({
       </View>
       <View style={styles.info}>
         <ThemedText style={styles.name} numberOfLines={1}>
-          {building.name}
+          {building.name}{totalSlots > 1 ? ` #${slotIndex + 1}` : ""}
         </ThemedText>
         <View style={styles.levelRow}>
           <ThemedText style={styles.level}>Lv.{level}</ThemedText>

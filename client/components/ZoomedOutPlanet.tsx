@@ -22,6 +22,7 @@ const PLANET_SIZE = SCREEN_WIDTH * 0.85;
 interface Building {
   id: string;
   buildingType: BuildingType;
+  slotIndex: number;
   level: number;
   isConstructing: boolean;
 }
