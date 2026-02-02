@@ -22,10 +22,11 @@ import { Feather } from "@expo/vector-icons";
 import { ZoomedOutPlanet } from "@/components/ZoomedOutPlanet";
 import { CityView } from "@/components/CityView";
 import { BuildingDetailModal } from "@/components/BuildingDetailModal";
+import { ShipBuildingModal } from "@/components/ShipBuildingModal";
 import { ConstructionQueue } from "@/components/ConstructionQueue";
 import { ThemedText } from "@/components/ThemedText";
 import { GameColors, Spacing, BorderRadius } from "@/constants/theme";
-import { BuildingType } from "@/constants/gameData";
+import { BuildingType, BUILDING_TYPES } from "@/constants/gameData";
 import { apiRequest } from "@/lib/query-client";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -73,6 +74,8 @@ export default function PlanetScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [shipModalVisible, setShipModalVisible] = useState(false);
+  const [fleetDockLevel, setFleetDockLevel] = useState(0);
 
   const zoomProgress = useSharedValue(0);
 
@@ -157,6 +160,12 @@ export default function PlanetScreen() {
   const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedBuilding(null);
+  };
+
+  const handleFleetDockPress = (building: Building) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setFleetDockLevel(building.level);
+    setShipModalVisible(true);
   };
 
   const planetAnimatedStyle = useAnimatedStyle(() => {
@@ -251,6 +260,7 @@ export default function PlanetScreen() {
                 buildings={buildings || []}
                 onBuildingPress={handleBuildingPress}
                 onEmptySlotPress={handleEmptySlotPress}
+                onFleetDockPress={handleFleetDockPress}
               />
             </Animated.View>
           )}
@@ -272,6 +282,12 @@ export default function PlanetScreen() {
         }}
         onUpgrade={handleUpgrade}
         isUpgrading={upgradeMutation.isPending}
+      />
+
+      <ShipBuildingModal
+        visible={shipModalVisible}
+        onClose={() => setShipModalVisible(false)}
+        fleetDockLevel={fleetDockLevel}
       />
     </>
   );

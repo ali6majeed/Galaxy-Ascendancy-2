@@ -45,6 +45,7 @@ interface CityViewProps {
   buildings: Building[];
   onBuildingPress: (building: Building) => void;
   onEmptySlotPress: (buildingType: BuildingType, slotIndex: number) => void;
+  onFleetDockPress?: (building: Building) => void;
 }
 
 interface MapPosition {
@@ -212,9 +213,20 @@ export function CityView({
   buildings,
   onBuildingPress,
   onEmptySlotPress,
+  onFleetDockPress,
 }: CityViewProps) {
   const findBuilding = (buildingType: BuildingType) => {
     return buildings.find((b) => b.buildingType === buildingType);
+  };
+
+  const handleBuildingTap = (position: MapPosition, building: Building | undefined) => {
+    if (position.buildingType === BUILDING_TYPES.FLEET_DOCK && building && onFleetDockPress) {
+      onFleetDockPress(building);
+    } else if (building) {
+      onBuildingPress(building);
+    } else {
+      onEmptySlotPress(position.buildingType, 0);
+    }
   };
 
   return (
@@ -236,13 +248,7 @@ export function CityView({
                 key={position.buildingType}
                 position={position}
                 building={building}
-                onPress={() => {
-                  if (building) {
-                    onBuildingPress(building);
-                  } else {
-                    onEmptySlotPress(position.buildingType, 0);
-                  }
-                }}
+                onPress={() => handleBuildingTap(position, building)}
               />
             );
           })}
@@ -251,7 +257,7 @@ export function CityView({
 
       <View style={styles.upgradeHint}>
         <ThemedText style={styles.hintText}>
-          Tap buildings to upgrade. Higher levels = bigger buildings!
+          Tap buildings to upgrade. Fleet Dock to build ships!
         </ThemedText>
       </View>
     </View>
