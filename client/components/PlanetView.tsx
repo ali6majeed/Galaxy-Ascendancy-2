@@ -19,6 +19,7 @@ import { LayerType, LAYER_TYPES, BuildingType, BUILDING_DEFINITIONS } from "@/co
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLANET_SIZE = SCREEN_WIDTH * 0.85;
+const PLANET_INNER_SIZE = PLANET_SIZE * 0.9;
 
 interface Building {
   id: string;
@@ -49,12 +50,12 @@ const buildingImages: Record<string, any> = {
 };
 
 const BUILDING_POSITIONS: Record<BuildingType, { x: number; y: number }> = {
-  metal_mine: { x: 0.25, y: 0.35 },
-  crystal_refinery: { x: 0.65, y: 0.30 },
-  oxygen_processor: { x: 0.20, y: 0.60 },
-  energy_plant: { x: 0.50, y: 0.55 },
-  fleet_dock: { x: 0.50, y: 0.25 },
-  research_lab: { x: 0.70, y: 0.55 },
+  metal_mine: { x: 0.22, y: 0.30 },
+  crystal_refinery: { x: 0.68, y: 0.25 },
+  oxygen_processor: { x: 0.18, y: 0.58 },
+  energy_plant: { x: 0.50, y: 0.50 },
+  fleet_dock: { x: 0.50, y: 0.22 },
+  research_lab: { x: 0.72, y: 0.55 },
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -81,12 +82,12 @@ function BuildingIcon({ building, onPress, position, containerSize }: BuildingIc
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { scale: scale.value },
-      { translateY: interpolate(bounce.value, [0, 1], [0, -3]) },
+      { translateY: interpolate(bounce.value, [0, 1], [0, -4]) },
     ],
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.9, { damping: 15, stiffness: 200 });
+    scale.value = withSpring(0.85, { damping: 15, stiffness: 200 });
   };
 
   const handlePressOut = () => {
@@ -98,7 +99,8 @@ function BuildingIcon({ building, onPress, position, containerSize }: BuildingIc
     onPress();
   };
 
-  const iconSize = containerSize * 0.18;
+  const iconSize = 60;
+  const hitSlop = 15;
   const left = position.x * containerSize - iconSize / 2;
   const top = position.y * containerSize - iconSize / 2;
 
@@ -117,6 +119,8 @@ function BuildingIcon({ building, onPress, position, containerSize }: BuildingIc
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      hitSlop={{ top: hitSlop, bottom: hitSlop, left: hitSlop, right: hitSlop }}
+      testID={`building-icon-${building.buildingType}`}
     >
       <Image
         source={buildingImages[building.buildingType]}
@@ -188,11 +192,12 @@ export function PlanetView({ activeLayer, buildings = [], onBuildingPress }: Pla
     return definition?.layer === activeLayer;
   });
 
-  const planetContainerSize = PLANET_SIZE * 0.9;
+  const offset = (PLANET_SIZE - PLANET_INNER_SIZE) / 2;
 
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.glowOuter, glowStyle, { backgroundColor: getGlowColor() }]} />
+      
       <Animated.View style={[styles.planetContainer, pulseStyle]}>
         <Animated.Image
           key={activeLayer}
@@ -202,20 +207,23 @@ export function PlanetView({ activeLayer, buildings = [], onBuildingPress }: Pla
           style={[styles.planetImage]}
           resizeMode="contain"
         />
-        
+      </Animated.View>
+      
+      <Animated.View style={[styles.orbitRing, rotationStyle]}>
+        <View style={styles.orbitDot} />
+      </Animated.View>
+      
+      <View style={[styles.buildingsLayer, { left: offset, top: offset }]}>
         {filteredBuildings.map((building) => (
           <BuildingIcon
             key={building.id}
             building={building}
             position={BUILDING_POSITIONS[building.buildingType]}
-            containerSize={planetContainerSize}
+            containerSize={PLANET_INNER_SIZE}
             onPress={() => onBuildingPress?.(building)}
           />
         ))}
-      </Animated.View>
-      <Animated.View style={[styles.orbitRing, rotationStyle]}>
-        <View style={styles.orbitDot} />
-      </Animated.View>
+      </View>
       
       {filteredBuildings.length > 0 ? (
         <View style={styles.tapHint}>
@@ -241,9 +249,9 @@ const styles = StyleSheet.create({
     borderRadius: PLANET_SIZE / 2,
   },
   planetContainer: {
-    width: PLANET_SIZE * 0.9,
-    height: PLANET_SIZE * 0.9,
-    borderRadius: PLANET_SIZE * 0.45,
+    width: PLANET_INNER_SIZE,
+    height: PLANET_INNER_SIZE,
+    borderRadius: PLANET_INNER_SIZE / 2,
     overflow: "hidden",
     backgroundColor: GameColors.background,
   },
@@ -268,58 +276,71 @@ const styles = StyleSheet.create({
     backgroundColor: GameColors.primary,
     marginTop: -4,
   },
+  buildingsLayer: {
+    position: "absolute",
+    width: PLANET_INNER_SIZE,
+    height: PLANET_INNER_SIZE,
+  },
   buildingIcon: {
     position: "absolute",
-    borderRadius: BorderRadius.sm,
-    overflow: "hidden",
-    borderWidth: 2,
+    borderRadius: BorderRadius.md,
+    overflow: "visible",
+    borderWidth: 3,
     borderColor: GameColors.primary,
     backgroundColor: GameColors.surface,
+    shadowColor: GameColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
   },
   buildingIconImage: {
     width: "100%",
     height: "100%",
+    borderRadius: BorderRadius.sm,
   },
   levelBadge: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
+    bottom: -6,
+    right: -6,
     backgroundColor: GameColors.primary,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 12,
+    minWidth: 22,
+    height: 22,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: GameColors.surface,
   },
   levelText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
     fontFamily: "Orbitron_700Bold",
     color: GameColors.textPrimary,
   },
   constructingIndicator: {
     position: "absolute",
-    top: -3,
-    left: -3,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: -5,
+    left: -5,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: GameColors.accent,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: GameColors.surface,
   },
   tapHint: {
     position: "absolute",
-    bottom: -Spacing.lg,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    bottom: -Spacing.xl,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
   },
   tapHintText: {
-    fontSize: 11,
+    fontSize: 12,
     color: GameColors.textSecondary,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Inter_500Medium",
   },
 });
