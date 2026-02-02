@@ -124,16 +124,17 @@ function getFieldPositionsOnPlanet(): FieldPosition[] {
   return positions;
 }
 
-function getResourceColor(value: number, maxValue: number): string {
-  const safeValue = Math.max(0, value);
-  const ratio = Math.min(safeValue / maxValue, 1);
+function getResourceColor(ratio: number): string {
+  const safeRatio = Math.max(0, Math.min(ratio, 1));
   
-  if (ratio < 0.25) {
+  if (safeRatio < 0.2) {
     return "#E74C3C";
-  } else if (ratio < 0.5) {
+  } else if (safeRatio < 0.4) {
     return "#E67E22";
-  } else if (ratio < 0.75) {
+  } else if (safeRatio < 0.6) {
     return "#F1C40F";
+  } else if (safeRatio < 0.8) {
+    return "#A3D550";
   } else {
     return "#2ECC71";
   }
@@ -235,6 +236,31 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
   );
 }
 
+function ResourceProgressBar({ label, value, maxValue }: { label: string; value: number; maxValue: number }) {
+  const safeValue = Math.max(0, value);
+  const ratio = Math.min(safeValue / maxValue, 1);
+  const color = getResourceColor(ratio);
+  
+  return (
+    <View style={styles.resourceBarItem}>
+      <ThemedText style={styles.resourceBarLabel}>{label}</ThemedText>
+      <View style={styles.progressBarContainer}>
+        <View style={styles.progressBarBackground}>
+          <View 
+            style={[
+              styles.progressBarFill, 
+              { 
+                width: `${ratio * 100}%`,
+                backgroundColor: color,
+              }
+            ]} 
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function ResourceBar({ resources }: { resources?: PlayerResources }) {
   const metal = Math.max(0, resources?.metal ?? 0);
   const crystal = Math.max(0, resources?.crystal ?? 0);
@@ -245,43 +271,10 @@ function ResourceBar({ resources }: { resources?: PlayerResources }) {
   
   return (
     <View style={styles.resourceBar}>
-      <View style={styles.resourceItem}>
-        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(metal, maxResource) }]} />
-        <ThemedText style={styles.resourceLabel}>Metal</ThemedText>
-        <ThemedText style={[styles.resourceValue, { color: getResourceColor(metal, maxResource) }]}>
-          {formatNumber(metal)}
-        </ThemedText>
-      </View>
-      
-      <View style={styles.resourceDivider} />
-      
-      <View style={styles.resourceItem}>
-        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(crystal, maxResource) }]} />
-        <ThemedText style={styles.resourceLabel}>Crystal</ThemedText>
-        <ThemedText style={[styles.resourceValue, { color: getResourceColor(crystal, maxResource) }]}>
-          {formatNumber(crystal)}
-        </ThemedText>
-      </View>
-      
-      <View style={styles.resourceDivider} />
-      
-      <View style={styles.resourceItem}>
-        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(oxygen, maxResource) }]} />
-        <ThemedText style={styles.resourceLabel}>O2</ThemedText>
-        <ThemedText style={[styles.resourceValue, { color: getResourceColor(oxygen, maxResource) }]}>
-          {formatNumber(oxygen)}
-        </ThemedText>
-      </View>
-      
-      <View style={styles.resourceDivider} />
-      
-      <View style={styles.resourceItem}>
-        <View style={[styles.resourceIndicator, { backgroundColor: getResourceColor(Math.max(0, energy), maxResource) }]} />
-        <ThemedText style={styles.resourceLabel}>Energy</ThemedText>
-        <ThemedText style={[styles.resourceValue, { color: getResourceColor(Math.max(0, energy), maxResource) }]}>
-          {formatNumber(Math.max(0, energy))}
-        </ThemedText>
-      </View>
+      <ResourceProgressBar label="Metal" value={metal} maxValue={maxResource} />
+      <ResourceProgressBar label="Crystal" value={crystal} maxValue={maxResource} />
+      <ResourceProgressBar label="O2" value={oxygen} maxValue={maxResource} />
+      <ResourceProgressBar label="Energy" value={energy} maxValue={maxResource} />
     </View>
   );
 }
@@ -410,38 +403,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.85)",
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 6,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+    gap: Spacing.sm,
   },
-  resourceItem: {
-    flexDirection: "row",
+  resourceBarItem: {
     alignItems: "center",
-    gap: 4,
+    gap: 2,
   },
-  resourceIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  resourceLabel: {
-    fontSize: 8,
+  resourceBarLabel: {
+    fontSize: 7,
     fontFamily: "Inter_500Medium",
     color: GameColors.textSecondary,
-    marginRight: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  resourceValue: {
-    fontSize: 10,
-    fontWeight: "700",
-    fontFamily: "Orbitron_700Bold",
+  progressBarContainer: {
+    width: 50,
+    height: 6,
   },
-  resourceDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginHorizontal: Spacing.sm,
+  progressBarBackground: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 3,
   },
   planetContainer: {
     width: PLANET_SIZE,
