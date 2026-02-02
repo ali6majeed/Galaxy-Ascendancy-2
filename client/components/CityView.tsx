@@ -29,9 +29,8 @@ import {
   BUILDING_TYPES,
 } from "@/constants/gameData";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const MAP_WIDTH = Math.min(SCREEN_WIDTH, 420);
-const MAP_HEIGHT = MAP_WIDTH * 1.2;
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const MAP_SIZE = Math.min(SCREEN_WIDTH - 24, 380);
 
 const cityMapBase = require("../../assets/images/city-map-base.png");
 const constructionSite = require("../../assets/images/construction-site.png");
@@ -82,12 +81,12 @@ interface MapPosition {
 }
 
 const BUILDING_POSITIONS: MapPosition[] = [
-  { x: 0.5, y: 0.35, size: 90, buildingType: BUILDING_TYPES.COMMAND_CENTER },
-  { x: 0.22, y: 0.22, size: 70, buildingType: BUILDING_TYPES.RESEARCH_LAB },
-  { x: 0.78, y: 0.22, size: 70, buildingType: BUILDING_TYPES.FLEET_DOCK },
-  { x: 0.15, y: 0.52, size: 70, buildingType: BUILDING_TYPES.SHIPYARD },
-  { x: 0.85, y: 0.52, size: 70, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM },
-  { x: 0.5, y: 0.72, size: 75, buildingType: BUILDING_TYPES.TRADE_HUB },
+  { x: 0.5, y: 0.42, size: 80, buildingType: BUILDING_TYPES.COMMAND_CENTER },
+  { x: 0.25, y: 0.22, size: 60, buildingType: BUILDING_TYPES.RESEARCH_LAB },
+  { x: 0.75, y: 0.22, size: 60, buildingType: BUILDING_TYPES.FLEET_DOCK },
+  { x: 0.18, y: 0.55, size: 60, buildingType: BUILDING_TYPES.SHIPYARD },
+  { x: 0.82, y: 0.55, size: 60, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM },
+  { x: 0.5, y: 0.78, size: 65, buildingType: BUILDING_TYPES.TRADE_HUB },
 ];
 
 type UpgradeStage = "basic" | "advanced" | "elite";
@@ -195,8 +194,8 @@ function MapBuilding({ position, building, onPress }: MapBuildingProps) {
     transform: [{ scale: activityAnim.value }],
   }));
 
-  const left = position.x * MAP_WIDTH - position.size / 2;
-  const top = position.y * MAP_HEIGHT - position.size / 2;
+  const left = position.x * MAP_SIZE - position.size / 2;
+  const top = position.y * MAP_SIZE - position.size / 2;
 
   return (
     <Pressable
@@ -399,8 +398,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   mapContainer: {
-    width: MAP_WIDTH,
-    height: MAP_HEIGHT,
+    width: MAP_SIZE,
+    height: MAP_SIZE,
     borderRadius: BorderRadius.lg,
     overflow: "hidden",
     position: "relative",
