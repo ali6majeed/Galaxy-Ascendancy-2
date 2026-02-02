@@ -1,5 +1,12 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Dimensions, Pressable } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  Pressable,
+  Image,
+  ImageSourcePropType,
+} from "react-native";
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -9,7 +16,6 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -18,10 +24,15 @@ import {
   BuildingType,
   BUILDING_DEFINITIONS,
   BUILDING_TYPES,
-  BUILDING_MAX_SLOTS,
 } from "@/constants/gameData";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CITY_SIZE = Math.min(SCREEN_WIDTH * 0.95, 400);
+const BUILDING_SPOT_SIZE = 70;
+
+const cityCenterBg = require("../../assets/images/city-center-bg.png");
+const buildingResearchLab = require("../../assets/images/building-research-lab.png");
+const buildingFleetDock = require("../../assets/images/building-fleet-dock.png");
 
 interface Building {
   id: string;
@@ -37,125 +48,125 @@ interface CityViewProps {
   onEmptySlotPress: (buildingType: BuildingType, slotIndex: number) => void;
 }
 
-const FACILITY_TYPES: BuildingType[] = [
-  BUILDING_TYPES.RESEARCH_LAB,
-  BUILDING_TYPES.FLEET_DOCK,
+interface BuildingSpotPosition {
+  x: number;
+  y: number;
+  buildingType: BuildingType;
+}
+
+const BUILDING_SPOT_POSITIONS: BuildingSpotPosition[] = [
+  { x: CITY_SIZE * 0.25, y: CITY_SIZE * 0.35, buildingType: BUILDING_TYPES.RESEARCH_LAB },
+  { x: CITY_SIZE * 0.65, y: CITY_SIZE * 0.55, buildingType: BUILDING_TYPES.FLEET_DOCK },
 ];
 
-const FACILITY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  [BUILDING_TYPES.RESEARCH_LAB]: "cpu",
-  [BUILDING_TYPES.FLEET_DOCK]: "navigation",
+const BUILDING_IMAGES: Record<string, ImageSourcePropType> = {
+  [BUILDING_TYPES.RESEARCH_LAB]: buildingResearchLab,
+  [BUILDING_TYPES.FLEET_DOCK]: buildingFleetDock,
 };
 
-const FACILITY_COLORS: Record<string, string> = {
+const BUILDING_COLORS: Record<string, string> = {
   [BUILDING_TYPES.RESEARCH_LAB]: "#1ABC9C",
   [BUILDING_TYPES.FLEET_DOCK]: "#E74C3C",
 };
 
-interface FacilityCardProps {
-  buildingType: BuildingType;
+interface BuildingSpotProps {
+  position: BuildingSpotPosition;
   building?: Building;
   onPress: () => void;
 }
 
-function FacilityCard({ buildingType, building, onPress }: FacilityCardProps) {
+function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
   const pulseAnim = useSharedValue(1);
-  const glowAnim = useSharedValue(0.2);
-  
+  const glowAnim = useSharedValue(0.3);
+
   const isEmpty = !building;
-  const canUpgrade = building && !building.isConstructing;
-  const definition = BUILDING_DEFINITIONS[buildingType];
-  const color = FACILITY_COLORS[buildingType];
-  const icon = FACILITY_ICONS[buildingType];
-  
+  const isConstructing = building?.isConstructing;
+  const color = BUILDING_COLORS[position.buildingType];
+  const definition = BUILDING_DEFINITIONS[position.buildingType];
+
   useEffect(() => {
-    if (canUpgrade) {
+    if (isEmpty) {
       pulseAnim.value = withRepeat(
-        withTiming(1.03, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
       glowAnim.value = withRepeat(
-        withTiming(0.5, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+    } else if (!isConstructing) {
+      pulseAnim.value = withRepeat(
+        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
     }
-  }, [canUpgrade]);
-  
-  const animatedStyle = useAnimatedStyle(() => ({
+  }, [isEmpty, isConstructing]);
+
+  const animatedSpotStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
   }));
-  
-  const glowStyle = useAnimatedStyle(() => ({
+
+  const animatedGlowStyle = useAnimatedStyle(() => ({
     opacity: glowAnim.value,
   }));
-  
+
   return (
     <Pressable
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onPress();
       }}
-      style={styles.facilityCardContainer}
+      style={[
+        styles.buildingSpotContainer,
+        {
+          left: position.x - BUILDING_SPOT_SIZE / 2,
+          top: position.y - BUILDING_SPOT_SIZE / 2,
+        },
+      ]}
     >
-      {canUpgrade ? (
-        <Animated.View style={[styles.facilityGlow, glowStyle, { backgroundColor: color }]} />
-      ) : null}
-      
-      <Animated.View style={[styles.facilityCard, animatedStyle]}>
+      <Animated.View style={[styles.buildingSpotGlow, animatedGlowStyle, { backgroundColor: color }]} />
+      <Animated.View style={[styles.buildingSpot, animatedSpotStyle]}>
         {isEmpty ? (
-          <View style={[styles.emptyFacility, { borderColor: color }]}>
-            <Feather name="plus" size={32} color={color} />
-            <ThemedText style={styles.emptyFacilityText}>Build {definition.name}</ThemedText>
-            <ThemedText style={styles.emptyFacilityDescription} numberOfLines={2}>
-              {definition.description}
-            </ThemedText>
+          <View style={[styles.emptySpot, { borderColor: color }]}>
+            <Feather name="plus" size={24} color={color} />
           </View>
         ) : (
-          <LinearGradient
-            colors={[`${color}40`, `${color}20`]}
-            style={styles.facilityGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.facilityHeader}>
-              <View style={[styles.facilityIconContainer, { backgroundColor: color }]}>
-                <Feather name={icon} size={28} color="#FFFFFF" />
-              </View>
-              <View style={styles.facilityInfo}>
-                <ThemedText style={styles.facilityName}>{definition.name}</ThemedText>
-                <View style={styles.levelContainer}>
-                  <ThemedText style={styles.facilityLevel}>Level {building.level}</ThemedText>
-                  {building.isConstructing ? (
-                    <View style={styles.constructingBadge}>
-                      <Feather name="loader" size={12} color={GameColors.warning} />
-                      <ThemedText style={styles.constructingText}>Upgrading</ThemedText>
-                    </View>
-                  ) : (
-                    <View style={styles.upgradeBadge}>
-                      <Feather name="arrow-up" size={12} color={GameColors.success} />
-                      <ThemedText style={styles.upgradeText}>Tap to upgrade</ThemedText>
-                    </View>
-                  )}
-                </View>
-              </View>
+          <View style={styles.buildingImageContainer}>
+            <Image
+              source={BUILDING_IMAGES[position.buildingType]}
+              style={styles.buildingImage}
+              resizeMode="cover"
+            />
+            <View style={[styles.levelBadge, { backgroundColor: color }]}>
+              <ThemedText style={styles.levelText}>{building.level}</ThemedText>
             </View>
-            
-            <ThemedText style={styles.facilityDescription} numberOfLines={2}>
-              {definition.description}
-            </ThemedText>
-          </LinearGradient>
+            {isConstructing ? (
+              <View style={styles.constructingIndicator}>
+                <Feather name="loader" size={14} color={GameColors.warning} />
+              </View>
+            ) : null}
+          </View>
         )}
       </Animated.View>
+      <ThemedText style={styles.spotLabel} numberOfLines={1}>
+        {isEmpty ? `Build ${definition.name}` : definition.name}
+      </ThemedText>
     </Pressable>
   );
 }
 
-export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityViewProps) {
-  const facilityBuildings = buildings.filter(b => 
-    b.buildingType === BUILDING_TYPES.RESEARCH_LAB ||
-    b.buildingType === BUILDING_TYPES.FLEET_DOCK
+export function CityView({
+  buildings,
+  onBuildingPress,
+  onEmptySlotPress,
+}: CityViewProps) {
+  const facilityBuildings = buildings.filter(
+    (b) =>
+      b.buildingType === BUILDING_TYPES.RESEARCH_LAB ||
+      b.buildingType === BUILDING_TYPES.FLEET_DOCK
   );
 
   return (
@@ -167,22 +178,27 @@ export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityV
         </ThemedText>
       </Animated.View>
 
-      <View style={styles.facilitiesContainer}>
-        {FACILITY_TYPES.map((facilityType, index) => {
-          const building = facilityBuildings.find(b => b.buildingType === facilityType);
+      <View style={styles.cityContainer}>
+        <Image source={cityCenterBg} style={styles.cityImage} resizeMode="cover" />
+
+        {BUILDING_SPOT_POSITIONS.map((position, index) => {
+          const building = facilityBuildings.find(
+            (b) => b.buildingType === position.buildingType
+          );
           return (
             <Animated.View
-              key={facilityType}
-              entering={FadeIn.delay(100 + index * 100).duration(400)}
+              key={position.buildingType}
+              entering={FadeIn.delay(200 + index * 100).duration(400)}
+              style={StyleSheet.absoluteFill}
             >
-              <FacilityCard
-                buildingType={facilityType}
+              <BuildingSpot
+                position={position}
                 building={building}
                 onPress={() => {
                   if (building) {
                     onBuildingPress(building);
                   } else {
-                    onEmptySlotPress(facilityType, 0);
+                    onEmptySlotPress(position.buildingType, 0);
                   }
                 }}
               />
@@ -194,7 +210,7 @@ export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityV
       <View style={styles.infoBox}>
         <Feather name="info" size={16} color={GameColors.textSecondary} />
         <ThemedText style={styles.infoText}>
-          Resource fields are located around the planet. Go back to planet view to manage them.
+          Tap a building spot to construct or upgrade facilities. Resource fields are on the planet surface.
         </ThemedText>
       </View>
     </View>
@@ -204,10 +220,11 @@ export function CityView({ buildings, onBuildingPress, onEmptySlotPress }: CityV
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: "center",
   },
   header: {
     alignItems: "center",
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   viewTitle: {
     fontSize: 24,
@@ -223,118 +240,96 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: Spacing.xs,
   },
-  facilitiesContainer: {
-    gap: Spacing.lg,
-  },
-  facilityCardContainer: {
+  cityContainer: {
+    width: CITY_SIZE,
+    height: CITY_SIZE,
+    borderRadius: CITY_SIZE / 2,
+    overflow: "hidden",
     position: "relative",
   },
-  facilityGlow: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: BorderRadius.lg,
-    transform: [{ scale: 1.02 }],
+  cityImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: CITY_SIZE / 2,
   },
-  facilityCard: {
-    borderRadius: BorderRadius.lg,
+  buildingSpotContainer: {
+    position: "absolute",
+    width: BUILDING_SPOT_SIZE,
+    alignItems: "center",
+  },
+  buildingSpotGlow: {
+    position: "absolute",
+    width: BUILDING_SPOT_SIZE + 10,
+    height: BUILDING_SPOT_SIZE + 10,
+    borderRadius: (BUILDING_SPOT_SIZE + 10) / 2,
+    top: -5,
+    left: -5,
+  },
+  buildingSpot: {
+    width: BUILDING_SPOT_SIZE,
+    height: BUILDING_SPOT_SIZE,
+    borderRadius: BUILDING_SPOT_SIZE / 2,
     overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  emptyFacility: {
-    padding: Spacing.xl,
+  emptySpot: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderStyle: "dashed",
-    borderRadius: BorderRadius.lg,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    minHeight: 140,
+    borderRadius: BUILDING_SPOT_SIZE / 2,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
-  emptyFacilityText: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.textSecondary,
-    marginTop: Spacing.md,
+  buildingImageContainer: {
+    flex: 1,
+    position: "relative",
   },
-  emptyFacilityDescription: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: GameColors.textTertiary,
-    textAlign: "center",
-    marginTop: Spacing.xs,
-    paddingHorizontal: Spacing.xl,
+  buildingImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: BUILDING_SPOT_SIZE / 2,
   },
-  facilityGradient: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    minHeight: 140,
-  },
-  facilityHeader: {
-    flexDirection: "row",
+  levelBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: "center",
-    gap: Spacing.md,
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: GameColors.background,
   },
-  facilityIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.md,
+  levelText: {
+    fontSize: 10,
+    fontFamily: "Orbitron_700Bold",
+    color: "#FFFFFF",
+  },
+  constructingIndicator: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
     alignItems: "center",
     justifyContent: "center",
   },
-  facilityInfo: {
-    flex: 1,
-  },
-  facilityName: {
-    fontSize: 18,
-    fontWeight: "700",
-    fontFamily: "Orbitron_700Bold",
+  spotLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_500Medium",
     color: GameColors.textPrimary,
-  },
-  levelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+    textAlign: "center",
     marginTop: 4,
-  },
-  facilityLevel: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: GameColors.textSecondary,
-  },
-  constructingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255, 149, 0, 0.2)",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  constructingText: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    color: GameColors.warning,
-  },
-  upgradeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(46, 204, 113, 0.2)",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  upgradeText: {
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    color: GameColors.success,
-  },
-  facilityDescription: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: GameColors.textSecondary,
-    marginTop: Spacing.md,
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    maxWidth: BUILDING_SPOT_SIZE + 20,
   },
   infoBox: {
     flexDirection: "row",
@@ -346,6 +341,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
     borderWidth: 1,
     borderColor: "rgba(10, 132, 255, 0.2)",
+    marginHorizontal: Spacing.md,
   },
   infoText: {
     flex: 1,
