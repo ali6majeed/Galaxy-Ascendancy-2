@@ -32,6 +32,7 @@ interface PlanetViewProps {
   activeLayer: LayerType;
   buildings?: Building[];
   onBuildingPress?: (building: Building) => void;
+  onEmptySlotPress?: (buildingType: BuildingType) => void;
 }
 
 const layerImages = {
@@ -65,6 +66,78 @@ interface BuildingIconProps {
   onPress: () => void;
   position: { x: number; y: number };
   containerSize: number;
+}
+
+interface EmptySlotProps {
+  buildingType: BuildingType;
+  onPress: () => void;
+  position: { x: number; y: number };
+  containerSize: number;
+}
+
+function EmptySlot({ buildingType, onPress, position, containerSize }: EmptySlotProps) {
+  const scale = useSharedValue(1);
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: interpolate(pulse.value, [0, 1], [0.5, 0.8]),
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.9, { damping: 15, stiffness: 200 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+  };
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  const iconSize = 60;
+  const hitSlop = 15;
+  const left = position.x * containerSize - iconSize / 2;
+  const top = position.y * containerSize - iconSize / 2;
+
+  const definition = BUILDING_DEFINITIONS[buildingType];
+
+  return (
+    <AnimatedPressable
+      style={[
+        styles.emptySlot,
+        animatedStyle,
+        {
+          width: iconSize,
+          height: iconSize,
+          left,
+          top,
+        },
+      ]}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={{ top: hitSlop, bottom: hitSlop, left: hitSlop, right: hitSlop }}
+      testID={`empty-slot-${buildingType}`}
+    >
+      <ThemedText style={styles.plusIcon}>+</ThemedText>
+      <View style={styles.slotLabel}>
+        <ThemedText style={styles.slotLabelText} numberOfLines={1}>
+          {definition.name}
+        </ThemedText>
+      </View>
+    </AnimatedPressable>
+  );
 }
 
 function BuildingIcon({ building, onPress, position, containerSize }: BuildingIconProps) {
@@ -137,7 +210,7 @@ function BuildingIcon({ building, onPress, position, containerSize }: BuildingIc
   );
 }
 
-export function PlanetView({ activeLayer, buildings = [], onBuildingPress }: PlanetViewProps) {
+export function PlanetView({ activeLayer, buildings = [], onBuildingPress, onEmptySlotPress }: PlanetViewProps) {
   const rotation = useSharedValue(0);
   const pulse = useSharedValue(0);
   const glow = useSharedValue(0);
@@ -192,6 +265,13 @@ export function PlanetView({ activeLayer, buildings = [], onBuildingPress }: Pla
     return definition?.layer === activeLayer;
   });
 
+  const existingBuildingTypes = new Set(buildings.map(b => b.buildingType));
+  
+  const emptySlots = (Object.keys(BUILDING_DEFINITIONS) as BuildingType[]).filter((type) => {
+    const definition = BUILDING_DEFINITIONS[type];
+    return definition.layer === activeLayer && !existingBuildingTypes.has(type);
+  });
+
   const offset = (PLANET_SIZE - PLANET_INNER_SIZE) / 2;
 
   return (
@@ -223,11 +303,22 @@ export function PlanetView({ activeLayer, buildings = [], onBuildingPress }: Pla
             onPress={() => onBuildingPress?.(building)}
           />
         ))}
+        {emptySlots.map((buildingType) => (
+          <EmptySlot
+            key={buildingType}
+            buildingType={buildingType}
+            position={BUILDING_POSITIONS[buildingType]}
+            containerSize={PLANET_INNER_SIZE}
+            onPress={() => onEmptySlotPress?.(buildingType)}
+          />
+        ))}
       </View>
       
-      {filteredBuildings.length > 0 ? (
+      {filteredBuildings.length > 0 || emptySlots.length > 0 ? (
         <View style={styles.tapHint}>
-          <ThemedText style={styles.tapHintText}>Tap buildings to upgrade</ThemedText>
+          <ThemedText style={styles.tapHintText}>
+            {emptySlots.length > 0 ? "Tap + to build, or buildings to upgrade" : "Tap buildings to upgrade"}
+          </ThemedText>
         </View>
       ) : null}
     </View>
@@ -342,5 +433,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: GameColors.textSecondary,
     fontFamily: "Inter_500Medium",
+  },
+  emptySlot: {
+    position: "absolute",
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    borderColor: GameColors.textSecondary,
+    borderStyle: "dashed",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  plusIcon: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: GameColors.textSecondary,
+    fontFamily: "Orbitron_700Bold",
+  },
+  slotLabel: {
+    position: "absolute",
+    bottom: -20,
+    left: -10,
+    right: -10,
+    alignItems: "center",
+  },
+  slotLabelText: {
+    fontSize: 8,
+    color: GameColors.textSecondary,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
   },
 });

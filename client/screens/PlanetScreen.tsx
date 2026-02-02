@@ -117,6 +117,11 @@ export default function PlanetScreen() {
     setModalVisible(true);
   };
 
+  const handleEmptySlotPress = (buildingType: BuildingType) => {
+    setSelectedBuilding({ id: "", buildingType, level: 0, isConstructing: false });
+    setModalVisible(true);
+  };
+
   const handleUpgrade = (buildingType: BuildingType) => {
     upgradeMutation.mutate(buildingType);
   };
@@ -170,6 +175,7 @@ export default function PlanetScreen() {
             activeLayer={activeLayer}
             buildings={buildings || []}
             onBuildingPress={handleBuildingPress}
+            onEmptySlotPress={handleEmptySlotPress}
           />
         </Animated.View>
 
@@ -220,7 +226,7 @@ export default function PlanetScreen() {
         visible={modalVisible}
         onClose={handleCloseModal}
         buildingType={selectedBuilding?.buildingType || null}
-        level={selectedBuilding?.level || 1}
+        level={selectedBuilding?.level ?? 0}
         resources={{
           metal: resources?.metal ?? 0,
           crystal: resources?.crystal ?? 0,

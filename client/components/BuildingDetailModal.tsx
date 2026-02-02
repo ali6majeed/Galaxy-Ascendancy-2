@@ -144,8 +144,10 @@ export function BuildingDetailModal({
               </View>
               <View style={styles.headerInfo}>
                 <ThemedText style={styles.buildingName}>{building.name}</ThemedText>
-                <View style={styles.levelBadge}>
-                  <ThemedText style={styles.levelText}>Level {level}</ThemedText>
+                <View style={[styles.levelBadge, level === 0 ? styles.newBadge : null]}>
+                  <ThemedText style={styles.levelText}>
+                    {level === 0 ? "New" : `Level ${level}`}
+                  </ThemedText>
                 </View>
               </View>
             </View>
@@ -201,7 +203,9 @@ export function BuildingDetailModal({
             ) : null}
 
             <View style={styles.upgradeSection}>
-              <ThemedText style={styles.sectionTitle}>Upgrade to Level {level + 1}</ThemedText>
+              <ThemedText style={styles.sectionTitle}>
+                {level === 0 ? "Construct Building" : `Upgrade to Level ${level + 1}`}
+              </ThemedText>
               
               <View style={styles.costContainer}>
                 <CostItem
@@ -240,9 +244,9 @@ export function BuildingDetailModal({
                 onPress={handleUpgrade}
                 disabled={!canAfford || isUpgrading}
                 variant={canAfford ? "primary" : "secondary"}
-                icon={canAfford && !isUpgrading ? <Feather name="arrow-up-circle" size={18} color={GameColors.textPrimary} /> : undefined}
+                icon={canAfford && !isUpgrading ? <Feather name={level === 0 ? "plus-circle" : "arrow-up-circle"} size={18} color={GameColors.textPrimary} /> : undefined}
               >
-                {isUpgrading ? "Starting..." : canAfford ? "Upgrade" : "Not Enough Resources"}
+                {isUpgrading ? "Starting..." : canAfford ? (level === 0 ? "Build" : "Upgrade") : "Not Enough Resources"}
               </GameButton>
             </View>
           </ScrollView>
@@ -348,6 +352,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.sm,
     alignSelf: "flex-start",
+  },
+  newBadge: {
+    backgroundColor: GameColors.success,
   },
   levelText: {
     fontSize: 12,
