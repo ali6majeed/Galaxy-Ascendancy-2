@@ -102,11 +102,11 @@ function getFieldPositionsOnPlanet(): FieldPosition[] {
       const seed = slotIndex * 137 + i * 47;
       
       const baseAngle = (slotIndex / totalSlots) * 360;
-      const angleOffset = (seededRandom(seed) - 0.5) * 25;
+      const angleOffset = (seededRandom(seed) - 0.5) * 30;
       const angle = baseAngle + angleOffset;
       
-      const minRadius = 0.15;
-      const maxRadius = 0.42;
+      const minRadius = 0.12;
+      const maxRadius = 0.88;
       const radiusVariation = seededRandom(seed + 100);
       const radius = (minRadius + radiusVariation * (maxRadius - minRadius)) * planetRadius;
       
