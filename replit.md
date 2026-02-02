@@ -34,7 +34,7 @@ Players can build multiple instances of resource buildings:
 - **Metal Mine**: 4 slots (displayed as Metal Mine #1, #2, #3, #4)
 - **Crystal Refinery**: 4 slots
 - **Oxygen Processor**: 6 slots
-- **Energy Plant**: 3 slots
+- **Energy Plant**: 4 slots
 - **Research Lab**: 1 slot (unique)
 - **Fleet Dock**: 1 slot (unique)
 
