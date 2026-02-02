@@ -24,6 +24,11 @@ The client follows a screen-based architecture with:
 - Modal screens for building details and construction queue
 - Shared components in `client/components/`
 
+### Planet View Navigation
+The Planet screen uses a zoom-based navigation system:
+- **Zoomed-out view**: Shows planet with animated resource bubbles (Metal, Crystal, Oxygen) orbiting, displaying production rates. A clickable "ENTER CITY" button in the center allows access to buildings.
+- **City view**: Shows all buildings organized into "Resource Buildings" and "Facilities & Fleet" sections. Players can build new structures or upgrade existing ones. A "Back to Planet" button returns to the zoomed-out view.
+
 ### Backend Architecture
 - **Framework**: Express.js 5.x running on Node.js
 - **Database**: PostgreSQL with Drizzle ORM
