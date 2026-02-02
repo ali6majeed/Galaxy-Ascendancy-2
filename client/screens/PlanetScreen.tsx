@@ -1,29 +1,35 @@
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl } from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { Feather } from "@expo/vector-icons";
 
 import { ResourceBar } from "@/components/ResourceBar";
-import { PageSwitcher, PlanetPageType } from "@/components/PageSwitcher";
-import { PlanetView } from "@/components/PlanetView";
-import { BuildingCard } from "@/components/BuildingCard";
+import { ZoomedOutPlanet } from "@/components/ZoomedOutPlanet";
+import { CityView } from "@/components/CityView";
 import { BuildingDetailModal } from "@/components/BuildingDetailModal";
 import { ConstructionQueue } from "@/components/ConstructionQueue";
-import { EmptyState } from "@/components/EmptyState";
-import { SkeletonCard } from "@/components/SkeletonLoader";
 import { ThemedText } from "@/components/ThemedText";
 import { GameColors, Spacing, BorderRadius } from "@/constants/theme";
-import {
-  BuildingType,
-  BUILDING_DEFINITIONS,
-  RESOURCE_BUILDINGS,
-  FACILITY_BUILDINGS,
-} from "@/constants/gameData";
+import { BuildingType } from "@/constants/gameData";
 import { apiRequest } from "@/lib/query-client";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface PlayerResources {
   metal: number;
@@ -55,16 +61,20 @@ interface ConstructionItem {
   completesAt: number;
 }
 
+type ViewMode = "planet" | "city";
+
 export default function PlanetScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const queryClient = useQueryClient();
 
-  const [activePage, setActivePage] = useState<PlanetPageType>("resources");
+  const [viewMode, setViewMode] = useState<ViewMode>("planet");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const zoomProgress = useSharedValue(0);
 
   const { data: resources, isLoading: resourcesLoading } = useQuery<PlayerResources>({
     queryKey: ["/api/player/resources"],
@@ -107,15 +117,19 @@ export default function PlanetScreen() {
     setRefreshing(false);
   }, [queryClient]);
 
-  const relevantBuildingTypes = activePage === "resources" ? RESOURCE_BUILDINGS : FACILITY_BUILDINGS;
-  
-  const filteredBuildings = buildings?.filter((b) => 
-    relevantBuildingTypes.includes(b.buildingType)
-  ) || [];
+  const handleCityPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    zoomProgress.value = withSpring(1, { damping: 15, stiffness: 100 }, () => {
+      runOnJS(setViewMode)("city");
+    });
+  };
 
-  const availableBuildingSlots = relevantBuildingTypes.filter(
-    (type) => !buildings?.some((b) => b.buildingType === type)
-  );
+  const handleBackToplanet = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    zoomProgress.value = withSpring(0, { damping: 15, stiffness: 100 }, () => {
+      runOnJS(setViewMode)("planet");
+    });
+  };
 
   const handleBuildingPress = (building: Building) => {
     setSelectedBuilding(building);
@@ -136,15 +150,43 @@ export default function PlanetScreen() {
     setSelectedBuilding(null);
   };
 
-  const isLoading = resourcesLoading || buildingsLoading;
+  const planetAnimatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      zoomProgress.value,
+      [0, 1],
+      [1, 2.5],
+      Extrapolation.CLAMP
+    );
+    const opacity = interpolate(
+      zoomProgress.value,
+      [0, 0.5],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
 
-  const pageTitle = activePage === "resources" 
-    ? "Resource Production" 
-    : "Buildings & Fleet";
-
-  const pageDescription = activePage === "resources"
-    ? "Manage your resource-generating structures"
-    : "Research technologies and build your fleet";
+  const cityAnimatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      zoomProgress.value,
+      [0, 1],
+      [0.5, 1],
+      Extrapolation.CLAMP
+    );
+    const opacity = interpolate(
+      zoomProgress.value,
+      [0.5, 1],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
 
   return (
     <>
@@ -179,79 +221,44 @@ export default function PlanetScreen() {
           />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.section}>
-          <PageSwitcher activePage={activePage} onPageChange={setActivePage} />
-        </Animated.View>
-
-        <Animated.View 
-          key={activePage}
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(200)}
-          style={styles.pageHeader}
-        >
-          <ThemedText style={styles.pageTitle}>{pageTitle}</ThemedText>
-          <ThemedText style={styles.pageDescription}>{pageDescription}</ThemedText>
-        </Animated.View>
-
         {constructionQueue && constructionQueue.length > 0 ? (
-          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.section}>
             <ConstructionQueue items={constructionQueue} />
           </Animated.View>
         ) : null}
 
-        <Animated.View 
-          key={`buildings-${activePage}`}
-          entering={FadeIn.duration(300)}
-          style={styles.section}
-        >
-          <ThemedText style={styles.sectionTitle}>
-            {activePage === "resources" ? "Resource Structures" : "Facility Structures"}
-          </ThemedText>
-
-          {isLoading ? (
-            <View style={styles.buildingList}>
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </View>
+        <View style={styles.viewContainer}>
+          {viewMode === "planet" ? (
+            <Animated.View 
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
+              style={styles.planetViewWrapper}
+            >
+              <ZoomedOutPlanet
+                resources={resources}
+                buildings={buildings || []}
+                onCityPress={handleCityPress}
+              />
+            </Animated.View>
           ) : (
-            <View style={styles.buildingList}>
-              {filteredBuildings.map((building, index) => (
-                <Animated.View
-                  key={building.id}
-                  entering={FadeInDown.delay(index * 50).duration(300)}
-                >
-                  <BuildingCard
-                    buildingType={building.buildingType}
-                    level={building.level}
-                    isConstructing={building.isConstructing}
-                    onPress={() => handleBuildingPress(building)}
-                  />
-                </Animated.View>
-              ))}
+            <Animated.View 
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
+              style={styles.cityViewWrapper}
+            >
+              <Pressable style={styles.backButton} onPress={handleBackToplanet} testID="back-to-planet">
+                <Feather name="arrow-left" size={20} color={GameColors.textPrimary} />
+                <ThemedText style={styles.backButtonText}>Back to Planet</ThemedText>
+              </Pressable>
               
-              {availableBuildingSlots.map((buildingType, index) => (
-                <Animated.View
-                  key={buildingType}
-                  entering={FadeInDown.delay((filteredBuildings.length + index) * 50).duration(300)}
-                >
-                  <EmptyBuildingCard
-                    buildingType={buildingType}
-                    onPress={() => handleEmptySlotPress(buildingType)}
-                  />
-                </Animated.View>
-              ))}
-
-              {filteredBuildings.length === 0 && availableBuildingSlots.length === 0 ? (
-                <EmptyState
-                  image={require("../../assets/images/empty-construction.png")}
-                  title="No Structures Available"
-                  description="Check back later for new structures to build."
-                />
-              ) : null}
-            </View>
+              <CityView
+                buildings={buildings || []}
+                onBuildingPress={handleBuildingPress}
+                onEmptySlotPress={handleEmptySlotPress}
+              />
+            </Animated.View>
           )}
-        </Animated.View>
+        </View>
       </ScrollView>
 
       <BuildingDetailModal
@@ -273,36 +280,6 @@ export default function PlanetScreen() {
   );
 }
 
-interface EmptyBuildingCardProps {
-  buildingType: BuildingType;
-  onPress: () => void;
-}
-
-function EmptyBuildingCard({ buildingType, onPress }: EmptyBuildingCardProps) {
-  const definition = BUILDING_DEFINITIONS[buildingType];
-  
-  return (
-    <View style={styles.emptyCard}>
-      <View style={styles.emptyCardContent}>
-        <View style={styles.emptyIconContainer}>
-          <ThemedText style={styles.emptyPlusIcon}>+</ThemedText>
-        </View>
-        <View style={styles.emptyCardInfo}>
-          <ThemedText style={styles.emptyCardTitle}>{definition.name}</ThemedText>
-          <ThemedText style={styles.emptyCardDescription} numberOfLines={2}>
-            {definition.description}
-          </ThemedText>
-        </View>
-      </View>
-      <View style={styles.emptyCardAction}>
-        <ThemedText style={styles.buildButtonText} onPress={onPress}>
-          BUILD
-        </ThemedText>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -311,91 +288,31 @@ const styles = StyleSheet.create({
   section: {
     marginTop: Spacing.lg,
   },
-  pageHeader: {
+  viewContainer: {
     marginTop: Spacing.xl,
+    minHeight: SCREEN_WIDTH,
+  },
+  planetViewWrapper: {
     alignItems: "center",
   },
-  pageTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    fontFamily: "Orbitron_700Bold",
-    color: GameColors.textPrimary,
-    textAlign: "center",
-  },
-  pageDescription: {
-    fontSize: 13,
-    color: GameColors.textSecondary,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    marginTop: Spacing.xs,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-  buildingList: {
-    gap: Spacing.sm,
-  },
-  emptyCard: {
-    backgroundColor: GameColors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 2,
-    borderColor: GameColors.textTertiary,
-    borderStyle: "dashed",
-  },
-  emptyCardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-  },
-  emptyIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: GameColors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: GameColors.textTertiary,
-  },
-  emptyPlusIcon: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: GameColors.textSecondary,
-    fontFamily: "Orbitron_700Bold",
-  },
-  emptyCardInfo: {
+  cityViewWrapper: {
     flex: 1,
   },
-  emptyCardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.textSecondary,
-  },
-  emptyCardDescription: {
-    fontSize: 12,
-    color: GameColors.textTertiary,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
-  emptyCardAction: {
-    marginTop: Spacing.md,
-    alignItems: "flex-end",
-  },
-  buildButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: "Orbitron_600SemiBold",
-    color: GameColors.primary,
-    paddingHorizontal: Spacing.lg,
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: GameColors.surface,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: "rgba(10, 132, 255, 0.15)",
-    borderRadius: BorderRadius.sm,
-    overflow: "hidden",
+    borderRadius: BorderRadius.md,
+    alignSelf: "flex-start",
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+    color: GameColors.textPrimary,
   },
 });
