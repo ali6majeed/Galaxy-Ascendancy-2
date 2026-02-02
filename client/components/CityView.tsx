@@ -16,6 +16,8 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Line, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -27,8 +29,8 @@ import {
 } from "@/constants/gameData";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CITY_SIZE = Math.min(SCREEN_WIDTH * 0.95, 400);
-const BUILDING_SPOT_SIZE = 58;
+const CITY_SIZE = Math.min(SCREEN_WIDTH * 0.95, 380);
+const BUILDING_SPOT_SIZE = 64;
 
 const cityCenterBg = require("../../assets/images/city-center-bg.png");
 const buildingResearchLab = require("../../assets/images/building-research-lab.png");
@@ -59,12 +61,20 @@ interface BuildingSpotPosition {
 }
 
 const BUILDING_SPOT_POSITIONS: BuildingSpotPosition[] = [
-  { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.22, buildingType: BUILDING_TYPES.COMMAND_CENTER },
-  { x: CITY_SIZE * 0.22, y: CITY_SIZE * 0.42, buildingType: BUILDING_TYPES.RESEARCH_LAB },
-  { x: CITY_SIZE * 0.78, y: CITY_SIZE * 0.42, buildingType: BUILDING_TYPES.FLEET_DOCK },
-  { x: CITY_SIZE * 0.28, y: CITY_SIZE * 0.68, buildingType: BUILDING_TYPES.SHIPYARD },
-  { x: CITY_SIZE * 0.72, y: CITY_SIZE * 0.68, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM },
+  { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.18, buildingType: BUILDING_TYPES.COMMAND_CENTER },
+  { x: CITY_SIZE * 0.2, y: CITY_SIZE * 0.38, buildingType: BUILDING_TYPES.RESEARCH_LAB },
+  { x: CITY_SIZE * 0.8, y: CITY_SIZE * 0.38, buildingType: BUILDING_TYPES.FLEET_DOCK },
+  { x: CITY_SIZE * 0.2, y: CITY_SIZE * 0.62, buildingType: BUILDING_TYPES.SHIPYARD },
+  { x: CITY_SIZE * 0.8, y: CITY_SIZE * 0.62, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM },
   { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.82, buildingType: BUILDING_TYPES.TRADE_HUB },
+];
+
+const CONNECTION_LINES: [number, number][] = [
+  [0, 1], [0, 2],
+  [1, 3], [2, 4],
+  [1, 2],
+  [3, 5], [4, 5],
+  [3, 4],
 ];
 
 const BUILDING_IMAGES: Record<string, ImageSourcePropType> = {
@@ -77,12 +87,12 @@ const BUILDING_IMAGES: Record<string, ImageSourcePropType> = {
 };
 
 const BUILDING_COLORS: Record<string, string> = {
-  [BUILDING_TYPES.COMMAND_CENTER]: "#3498DB",
-  [BUILDING_TYPES.RESEARCH_LAB]: "#1ABC9C",
-  [BUILDING_TYPES.FLEET_DOCK]: "#E74C3C",
-  [BUILDING_TYPES.SHIPYARD]: "#F39C12",
-  [BUILDING_TYPES.DEFENSE_PLATFORM]: "#9B59B6",
-  [BUILDING_TYPES.TRADE_HUB]: "#F1C40F",
+  [BUILDING_TYPES.COMMAND_CENTER]: "#00D4FF",
+  [BUILDING_TYPES.RESEARCH_LAB]: "#00FF88",
+  [BUILDING_TYPES.FLEET_DOCK]: "#FF6B35",
+  [BUILDING_TYPES.SHIPYARD]: "#FFB800",
+  [BUILDING_TYPES.DEFENSE_PLATFORM]: "#FF3366",
+  [BUILDING_TYPES.TRADE_HUB]: "#AA66FF",
 };
 
 interface BuildingSpotProps {
@@ -93,7 +103,8 @@ interface BuildingSpotProps {
 
 function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
   const pulseAnim = useSharedValue(1);
-  const glowAnim = useSharedValue(0.3);
+  const glowAnim = useSharedValue(0.4);
+  const ringAnim = useSharedValue(1);
 
   const isEmpty = !building;
   const isConstructing = building?.isConstructing;
@@ -103,18 +114,23 @@ function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
   useEffect(() => {
     if (isEmpty) {
       pulseAnim.value = withRepeat(
-        withTiming(1.1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.08, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
       glowAnim.value = withRepeat(
-        withTiming(0.6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.7, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
-    } else if (!isConstructing) {
-      pulseAnim.value = withRepeat(
-        withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+    } else {
+      ringAnim.value = withRepeat(
+        withTiming(1.15, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+      glowAnim.value = withRepeat(
+        withTiming(0.6, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
@@ -127,6 +143,7 @@ function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
 
   const animatedGlowStyle = useAnimatedStyle(() => ({
     opacity: glowAnim.value,
+    transform: [{ scale: ringAnim.value }],
   }));
 
   return (
@@ -143,34 +160,77 @@ function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
         },
       ]}
     >
-      <Animated.View style={[styles.buildingSpotGlow, animatedGlowStyle, { backgroundColor: color }]} />
+      <Animated.View 
+        style={[
+          styles.buildingSpotRing, 
+          animatedGlowStyle, 
+          { borderColor: color, shadowColor: color }
+        ]} 
+      />
       <Animated.View style={[styles.buildingSpot, animatedSpotStyle]}>
-        {isEmpty ? (
-          <View style={[styles.emptySpot, { borderColor: color }]}>
-            <Feather name="plus" size={24} color={color} />
-          </View>
-        ) : (
-          <View style={styles.buildingImageContainer}>
-            <Image
-              source={BUILDING_IMAGES[position.buildingType]}
-              style={styles.buildingImage}
-              resizeMode="cover"
-            />
-            <View style={[styles.levelBadge, { backgroundColor: color }]}>
-              <ThemedText style={styles.levelText}>{building.level}</ThemedText>
+        <LinearGradient
+          colors={["rgba(20,30,50,0.9)", "rgba(10,15,25,0.95)"]}
+          style={styles.spotGradient}
+        >
+          {isEmpty ? (
+            <View style={[styles.emptySpot, { borderColor: color }]}>
+              <Feather name="plus" size={22} color={color} />
             </View>
-            {isConstructing ? (
-              <View style={styles.constructingIndicator}>
-                <Feather name="loader" size={14} color={GameColors.warning} />
+          ) : (
+            <View style={styles.buildingImageContainer}>
+              <Image
+                source={BUILDING_IMAGES[position.buildingType]}
+                style={styles.buildingImage}
+                resizeMode="cover"
+              />
+              <View style={[styles.levelBadge, { backgroundColor: color }]}>
+                <ThemedText style={styles.levelText}>{building.level}</ThemedText>
               </View>
-            ) : null}
-          </View>
-        )}
+              {isConstructing ? (
+                <View style={styles.constructingIndicator}>
+                  <Feather name="loader" size={12} color={GameColors.warning} />
+                </View>
+              ) : null}
+            </View>
+          )}
+        </LinearGradient>
       </Animated.View>
       <ThemedText style={styles.spotLabel} numberOfLines={1}>
-        {isEmpty ? `Build ${definition.name}` : definition.name}
+        {isEmpty ? definition.name : definition.name}
       </ThemedText>
     </Pressable>
+  );
+}
+
+function ConnectionLines() {
+  return (
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      {CONNECTION_LINES.map(([fromIdx, toIdx], i) => {
+        const from = BUILDING_SPOT_POSITIONS[fromIdx];
+        const to = BUILDING_SPOT_POSITIONS[toIdx];
+        return (
+          <Line
+            key={i}
+            x1={from.x}
+            y1={from.y}
+            x2={to.x}
+            y2={to.y}
+            stroke="rgba(0, 212, 255, 0.25)"
+            strokeWidth={2}
+            strokeDasharray="6,4"
+          />
+        );
+      })}
+      {BUILDING_SPOT_POSITIONS.map((pos, i) => (
+        <Circle
+          key={`node-${i}`}
+          cx={pos.x}
+          cy={pos.y}
+          r={4}
+          fill="rgba(0, 212, 255, 0.4)"
+        />
+      ))}
+    </Svg>
   );
 }
 
@@ -192,40 +252,46 @@ export function CityView({
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
-        <ThemedText style={styles.viewTitle}>City Center</ThemedText>
+        <ThemedText style={styles.viewTitle}>Colony Base</ThemedText>
         <ThemedText style={styles.viewSubtitle}>
-          Core facilities and fleet management
+          Command center and core facilities
         </ThemedText>
       </Animated.View>
 
-      <View style={styles.cityContainer}>
-        <Image source={cityCenterBg} style={styles.cityImage} resizeMode="cover" />
+      <View style={styles.cityWrapper}>
+        <View style={styles.cityContainer}>
+          <Image source={cityCenterBg} style={styles.cityImage} resizeMode="cover" />
+          
+          <ConnectionLines />
 
-        {BUILDING_SPOT_POSITIONS.map((position, index) => {
-          const building = facilityBuildings.find(
-            (b) => b.buildingType === position.buildingType
-          );
-          return (
-            <BuildingSpot
-              key={position.buildingType}
-              position={position}
-              building={building}
-              onPress={() => {
-                if (building) {
-                  onBuildingPress(building);
-                } else {
-                  onEmptySlotPress(position.buildingType, 0);
-                }
-              }}
-            />
-          );
-        })}
+          {BUILDING_SPOT_POSITIONS.map((position) => {
+            const building = facilityBuildings.find(
+              (b) => b.buildingType === position.buildingType
+            );
+            return (
+              <BuildingSpot
+                key={position.buildingType}
+                position={position}
+                building={building}
+                onPress={() => {
+                  if (building) {
+                    onBuildingPress(building);
+                  } else {
+                    onEmptySlotPress(position.buildingType, 0);
+                  }
+                }}
+              />
+            );
+          })}
+        </View>
+        
+        <View style={styles.cityBorder} pointerEvents="none" />
       </View>
 
       <View style={styles.infoBox}>
-        <Feather name="info" size={16} color={GameColors.textSecondary} />
+        <Feather name="zap" size={14} color="#00D4FF" />
         <ThemedText style={styles.infoText}>
-          Tap a building spot to construct or upgrade facilities. Resource fields are on the planet surface.
+          Build and upgrade facilities to unlock new capabilities
         </ThemedText>
       </View>
     </View>
@@ -239,55 +305,77 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   viewTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     fontFamily: "Orbitron_700Bold",
-    color: GameColors.textPrimary,
+    color: "#00D4FF",
     textAlign: "center",
+    textShadowColor: "rgba(0, 212, 255, 0.5)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   viewSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: GameColors.textSecondary,
     textAlign: "center",
-    marginTop: Spacing.xs,
+    marginTop: 4,
+  },
+  cityWrapper: {
+    position: "relative",
   },
   cityContainer: {
     width: CITY_SIZE,
     height: CITY_SIZE,
-    borderRadius: CITY_SIZE / 2,
+    borderRadius: 16,
     overflow: "hidden",
     position: "relative",
+  },
+  cityBorder: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(0, 212, 255, 0.3)",
   },
   cityImage: {
     width: "100%",
     height: "100%",
-    borderRadius: CITY_SIZE / 2,
   },
   buildingSpotContainer: {
     position: "absolute",
     width: BUILDING_SPOT_SIZE,
     alignItems: "center",
   },
-  buildingSpotGlow: {
+  buildingSpotRing: {
     position: "absolute",
-    width: BUILDING_SPOT_SIZE + 10,
-    height: BUILDING_SPOT_SIZE + 10,
-    borderRadius: (BUILDING_SPOT_SIZE + 10) / 2,
-    top: -5,
-    left: -5,
+    width: BUILDING_SPOT_SIZE + 12,
+    height: BUILDING_SPOT_SIZE + 12,
+    borderRadius: (BUILDING_SPOT_SIZE + 12) / 2,
+    top: -6,
+    left: -6,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
   },
   buildingSpot: {
     width: BUILDING_SPOT_SIZE,
     height: BUILDING_SPOT_SIZE,
     borderRadius: BUILDING_SPOT_SIZE / 2,
     overflow: "hidden",
-    backgroundColor: "rgba(0,0,0,0.5)",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  spotGradient: {
+    flex: 1,
+    borderRadius: BUILDING_SPOT_SIZE / 2,
   },
   emptySpot: {
     flex: 1,
@@ -296,7 +384,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: "dashed",
     borderRadius: BUILDING_SPOT_SIZE / 2,
-    backgroundColor: "rgba(0,0,0,0.4)",
   },
   buildingImageContainer: {
     flex: 1,
@@ -309,60 +396,61 @@ const styles = StyleSheet.create({
   },
   levelBadge: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    bottom: -3,
+    right: -3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: GameColors.background,
+    borderColor: "#0A0F14",
   },
   levelText: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: "Orbitron_700Bold",
     color: "#FFFFFF",
   },
   constructingIndicator: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    top: -3,
+    right: -3,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(0,0,0,0.8)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: GameColors.warning,
   },
   spotLabel: {
-    fontSize: 9,
-    fontFamily: "Inter_500Medium",
+    fontSize: 8,
+    fontFamily: "Orbitron_600SemiBold",
     color: GameColors.textPrimary,
     textAlign: "center",
-    marginTop: 4,
-    textShadowColor: "rgba(0,0,0,0.8)",
+    marginTop: 6,
+    textShadowColor: "rgba(0,0,0,0.9)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    maxWidth: BUILDING_SPOT_SIZE + 20,
+    textShadowRadius: 3,
+    maxWidth: BUILDING_SPOT_SIZE + 30,
+    letterSpacing: 0.5,
   },
   infoBox: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: Spacing.sm,
-    backgroundColor: "rgba(10, 132, 255, 0.1)",
-    padding: Spacing.md,
+    backgroundColor: "rgba(0, 212, 255, 0.08)",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
     borderWidth: 1,
-    borderColor: "rgba(10, 132, 255, 0.2)",
-    marginHorizontal: Spacing.md,
+    borderColor: "rgba(0, 212, 255, 0.15)",
   },
   infoText: {
-    flex: 1,
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
     color: GameColors.textSecondary,
-    lineHeight: 18,
   },
 });
