@@ -33,7 +33,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const MAP_SIZE = Math.min(SCREEN_WIDTH - 24, 380);
 
 const cityMapBase = require("../../assets/images/city-map-base.png");
-const constructionSite = require("../../assets/images/construction-site.png");
 
 const commandCenterBasic = require("../../assets/images/command-center-basic.png");
 const commandCenterAdvanced = require("../../assets/images/command-center-advanced.png");
@@ -141,7 +140,7 @@ function getUpgradeStage(level: number): UpgradeStage {
 
 function getBuildingImage(buildingType: BuildingType, level: number): ImageSourcePropType {
   const stages = BUILDING_STAGE_IMAGES[buildingType];
-  if (!stages) return constructionSite;
+  if (!stages) return commandCenterBasic;
   return stages[getUpgradeStage(level)];
 }
 
@@ -215,14 +214,7 @@ function MapBuilding({ position, building, onPress }: MapBuildingProps) {
     >
       {isEmpty ? (
         <Animated.View entering={ZoomIn.duration(300)} style={styles.emptySlot}>
-          <Image
-            source={constructionSite}
-            style={styles.constructionImage}
-            resizeMode="contain"
-          />
-          <View style={[styles.buildPrompt, { borderColor: color }]}>
-            <Feather name="plus" size={16} color={color} />
-          </View>
+          <View style={[styles.emptyPlatform, { shadowColor: color }]} />
         </Animated.View>
       ) : (
         <Animated.View style={[styles.builtBuilding, animatedBuildingStyle]}>
@@ -258,7 +250,7 @@ function MapBuilding({ position, building, onPress }: MapBuildingProps) {
 
       <View style={styles.labelContainer}>
         <ThemedText style={styles.buildingLabel} numberOfLines={1}>
-          {isEmpty ? "Empty" : definition.name}
+          {definition.name}
         </ThemedText>
       </View>
     </Pressable>
@@ -423,21 +415,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "relative",
   },
-  constructionImage: {
-    width: "80%",
-    height: "80%",
-    opacity: 0.6,
-  },
-  buildPrompt: {
-    position: "absolute",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    alignItems: "center",
-    justifyContent: "center",
+  emptyPlatform: {
+    width: "70%",
+    height: "70%",
+    borderRadius: 100,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 4,
   },
   builtBuilding: {
     width: "100%",
