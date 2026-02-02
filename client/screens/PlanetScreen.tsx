@@ -77,24 +77,30 @@ export default function PlanetScreen() {
 
   const upgradeMutation = useMutation({
     mutationFn: async (buildingType: BuildingType) => {
-      return apiRequest(`/api/buildings/${buildingType}/upgrade`, {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", "/api/buildings/upgrade", { buildingType });
+      return response.json();
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["/api/player"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/player/resources"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/player/buildings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/player/construction"] });
       setModalVisible(false);
       setSelectedBuilding(null);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Upgrade failed:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ["/api/player"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/player/resources"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/player/buildings"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/player/construction"] }),
+    ]);
     setRefreshing(false);
   }, [queryClient]);
 
