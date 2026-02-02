@@ -101,6 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         buildings.map((b) => ({
           id: b.id,
           buildingType: b.buildingType,
+          slotIndex: b.slotIndex,
           level: b.level,
           isConstructing: b.isConstructing,
         }))
@@ -149,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await ensureDemoPlayer();
       
-      const { buildingType } = req.body;
+      const { buildingType, slotIndex = 0 } = req.body;
       if (!buildingType) {
         return res.status(400).json({ error: "Building type required" });
       }
@@ -175,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Planet not found" });
       }
 
-      let existingBuilding = await storage.getBuildingByType(planet.id, buildingType);
+      let existingBuilding = await storage.getBuildingByTypeAndSlot(planet.id, buildingType, slotIndex);
       const currentLevel = existingBuilding?.level || 0;
       const targetLevel = currentLevel + 1;
 
@@ -205,6 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingBuilding = await storage.createBuilding({
           planetId: planet.id,
           buildingType,
+          slotIndex,
           level: 0,
         });
       }
@@ -225,6 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         queueItem: {
           id: queueItem.id,
           buildingType,
+          slotIndex,
           buildingName: def.name,
           targetLevel,
           completesAt: completesAt.getTime(),

@@ -28,6 +28,7 @@ export interface IStorage {
   getBuildings(planetId: string): Promise<Building[]>;
   getBuilding(id: string): Promise<Building | undefined>;
   getBuildingByType(planetId: string, buildingType: string): Promise<Building | undefined>;
+  getBuildingByTypeAndSlot(planetId: string, buildingType: string, slotIndex: number): Promise<Building | undefined>;
   createBuilding(building: InsertBuilding): Promise<Building>;
   updateBuilding(id: string, updates: Partial<Building>): Promise<Building>;
   
@@ -91,6 +92,18 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(buildings)
       .where(and(eq(buildings.planetId, planetId), eq(buildings.buildingType, buildingType)));
+    return building || undefined;
+  }
+
+  async getBuildingByTypeAndSlot(planetId: string, buildingType: string, slotIndex: number): Promise<Building | undefined> {
+    const [building] = await db
+      .select()
+      .from(buildings)
+      .where(and(
+        eq(buildings.planetId, planetId), 
+        eq(buildings.buildingType, buildingType),
+        eq(buildings.slotIndex, slotIndex)
+      ));
     return building || undefined;
   }
 

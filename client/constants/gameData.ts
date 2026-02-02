@@ -45,6 +45,40 @@ export const FACILITY_BUILDINGS: BuildingType[] = [
 
 export type BuildingType = (typeof BUILDING_TYPES)[keyof typeof BUILDING_TYPES];
 
+export const BUILDING_MAX_SLOTS: Record<BuildingType, number> = {
+  [BUILDING_TYPES.METAL_MINE]: 4,
+  [BUILDING_TYPES.CRYSTAL_REFINERY]: 4,
+  [BUILDING_TYPES.OXYGEN_PROCESSOR]: 6,
+  [BUILDING_TYPES.ENERGY_PLANT]: 3,
+  [BUILDING_TYPES.FLEET_DOCK]: 1,
+  [BUILDING_TYPES.RESEARCH_LAB]: 1,
+};
+
+export interface BuildingSlot {
+  buildingType: BuildingType;
+  slotIndex: number;
+  position: { angle: number; radius: number };
+}
+
+export const PLANET_BUILDING_SLOTS: BuildingSlot[] = [
+  { buildingType: BUILDING_TYPES.METAL_MINE, slotIndex: 0, position: { angle: 30, radius: 0.38 } },
+  { buildingType: BUILDING_TYPES.METAL_MINE, slotIndex: 1, position: { angle: 60, radius: 0.42 } },
+  { buildingType: BUILDING_TYPES.METAL_MINE, slotIndex: 2, position: { angle: 90, radius: 0.38 } },
+  { buildingType: BUILDING_TYPES.METAL_MINE, slotIndex: 3, position: { angle: 120, radius: 0.42 } },
+  
+  { buildingType: BUILDING_TYPES.CRYSTAL_REFINERY, slotIndex: 0, position: { angle: 150, radius: 0.38 } },
+  { buildingType: BUILDING_TYPES.CRYSTAL_REFINERY, slotIndex: 1, position: { angle: 180, radius: 0.42 } },
+  { buildingType: BUILDING_TYPES.CRYSTAL_REFINERY, slotIndex: 2, position: { angle: 210, radius: 0.38 } },
+  { buildingType: BUILDING_TYPES.CRYSTAL_REFINERY, slotIndex: 3, position: { angle: 240, radius: 0.42 } },
+  
+  { buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: 0, position: { angle: 270, radius: 0.35 } },
+  { buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: 1, position: { angle: 290, radius: 0.40 } },
+  { buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: 2, position: { angle: 310, radius: 0.35 } },
+  { buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: 3, position: { angle: 330, radius: 0.40 } },
+  { buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: 4, position: { angle: 350, radius: 0.35 } },
+  { buildingType: BUILDING_TYPES.OXYGEN_PROCESSOR, slotIndex: 5, position: { angle: 10, radius: 0.40 } },
+];
+
 export interface BuildingDefinition {
   id: BuildingType;
   name: string;

@@ -45,6 +45,7 @@ export const buildings = pgTable("buildings", {
     .references(() => planets.id)
     .notNull(),
   buildingType: text("building_type").notNull(),
+  slotIndex: integer("slot_index").notNull().default(0),
   level: integer("level").notNull().default(1),
   isConstructing: boolean("is_constructing").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -110,6 +111,7 @@ export const insertPlanetSchema = createInsertSchema(planets).pick({
 export const insertBuildingSchema = createInsertSchema(buildings).pick({
   planetId: true,
   buildingType: true,
+  slotIndex: true,
   level: true,
 });
 
