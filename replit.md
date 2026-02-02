@@ -27,7 +27,18 @@ The client follows a screen-based architecture with:
 ### Planet View Navigation
 The Planet screen uses a zoom-based navigation system:
 - **Zoomed-out view**: Shows planet with animated resource bubbles (Metal, Crystal, Oxygen) orbiting, displaying production rates. A clickable "ENTER CITY" button in the center allows access to buildings.
-- **City view**: Shows all buildings organized into "Resource Buildings" and "Facilities & Fleet" sections. Players can build new structures or upgrade existing ones. A "Back to Planet" button returns to the zoomed-out view.
+- **City view**: Shows all building slots organized into "Resource Buildings" and "Facilities & Fleet" sections. Players can build new structures or upgrade existing ones. A "Back to Planet" button returns to the zoomed-out view.
+
+### Multi-Building Slot System
+Players can build multiple instances of resource buildings:
+- **Metal Mine**: 4 slots (displayed as Metal Mine #1, #2, #3, #4)
+- **Crystal Refinery**: 4 slots
+- **Oxygen Processor**: 6 slots
+- **Energy Plant**: 3 slots
+- **Research Lab**: 1 slot (unique)
+- **Fleet Dock**: 1 slot (unique)
+
+The `slotIndex` field in the buildings table tracks which slot a building occupies. Configuration is defined in `client/constants/gameData.ts` with `BUILDING_MAX_SLOTS` and `PLANET_BUILDING_SLOTS`.
 
 ### Backend Architecture
 - **Framework**: Express.js 5.x running on Node.js
