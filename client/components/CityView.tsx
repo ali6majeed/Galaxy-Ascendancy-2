@@ -14,10 +14,11 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
+  interpolateColor,
 } from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Line, Circle } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Defs, RadialGradient, Stop } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -30,7 +31,10 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CITY_SIZE = Math.min(SCREEN_WIDTH * 0.95, 380);
-const BUILDING_SPOT_SIZE = 64;
+const CENTER_X = CITY_SIZE / 2;
+const CENTER_Y = CITY_SIZE / 2;
+const BUILDING_SPOT_SIZE = 56;
+const NEXUS_SIZE = 50;
 
 const cityCenterBg = require("../../assets/images/city-center-bg.png");
 const buildingResearchLab = require("../../assets/images/building-research-lab.png");
@@ -58,23 +62,19 @@ interface BuildingSpotPosition {
   x: number;
   y: number;
   buildingType: BuildingType;
+  ring: number;
 }
 
-const BUILDING_SPOT_POSITIONS: BuildingSpotPosition[] = [
-  { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.18, buildingType: BUILDING_TYPES.COMMAND_CENTER },
-  { x: CITY_SIZE * 0.2, y: CITY_SIZE * 0.38, buildingType: BUILDING_TYPES.RESEARCH_LAB },
-  { x: CITY_SIZE * 0.8, y: CITY_SIZE * 0.38, buildingType: BUILDING_TYPES.FLEET_DOCK },
-  { x: CITY_SIZE * 0.2, y: CITY_SIZE * 0.62, buildingType: BUILDING_TYPES.SHIPYARD },
-  { x: CITY_SIZE * 0.8, y: CITY_SIZE * 0.62, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM },
-  { x: CITY_SIZE * 0.5, y: CITY_SIZE * 0.82, buildingType: BUILDING_TYPES.TRADE_HUB },
-];
+const INNER_RING_RADIUS = CITY_SIZE * 0.22;
+const OUTER_RING_RADIUS = CITY_SIZE * 0.38;
 
-const CONNECTION_LINES: [number, number][] = [
-  [0, 1], [0, 2],
-  [1, 3], [2, 4],
-  [1, 2],
-  [3, 5], [4, 5],
-  [3, 4],
+const BUILDING_SPOT_POSITIONS: BuildingSpotPosition[] = [
+  { x: CENTER_X, y: CENTER_Y - INNER_RING_RADIUS, buildingType: BUILDING_TYPES.COMMAND_CENTER, ring: 1 },
+  { x: CENTER_X - INNER_RING_RADIUS * 0.87, y: CENTER_Y + INNER_RING_RADIUS * 0.5, buildingType: BUILDING_TYPES.RESEARCH_LAB, ring: 1 },
+  { x: CENTER_X + INNER_RING_RADIUS * 0.87, y: CENTER_Y + INNER_RING_RADIUS * 0.5, buildingType: BUILDING_TYPES.FLEET_DOCK, ring: 1 },
+  { x: CENTER_X - OUTER_RING_RADIUS * 0.87, y: CENTER_Y - OUTER_RING_RADIUS * 0.5, buildingType: BUILDING_TYPES.SHIPYARD, ring: 2 },
+  { x: CENTER_X + OUTER_RING_RADIUS * 0.87, y: CENTER_Y - OUTER_RING_RADIUS * 0.5, buildingType: BUILDING_TYPES.DEFENSE_PLATFORM, ring: 2 },
+  { x: CENTER_X, y: CENTER_Y + OUTER_RING_RADIUS, buildingType: BUILDING_TYPES.TRADE_HUB, ring: 2 },
 ];
 
 const BUILDING_IMAGES: Record<string, ImageSourcePropType> = {
@@ -95,6 +95,141 @@ const BUILDING_COLORS: Record<string, string> = {
   [BUILDING_TYPES.TRADE_HUB]: "#AA66FF",
 };
 
+function CoreNexus() {
+  const pulseAnim = useSharedValue(0);
+  const glowAnim = useSharedValue(1);
+
+  useEffect(() => {
+    pulseAnim.value = withRepeat(
+      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+    glowAnim.value = withRepeat(
+      withTiming(1.2, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: glowAnim.value }],
+    opacity: 0.6 + pulseAnim.value * 0.4,
+  }));
+
+  const animatedCoreStyle = useAnimatedStyle(() => {
+    const color = interpolateColor(
+      pulseAnim.value,
+      [0, 0.5, 1],
+      ["#00D4FF", "#00FFFF", "#00D4FF"]
+    );
+    return {
+      shadowColor: color,
+    };
+  });
+
+  return (
+    <View style={styles.nexusContainer}>
+      <Animated.View style={[styles.nexusGlow, animatedGlowStyle]} />
+      <Animated.View style={[styles.nexusCore, animatedCoreStyle]}>
+        <LinearGradient
+          colors={["#00FFFF", "#00D4FF", "#0088FF"]}
+          style={styles.nexusGradient}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+        >
+          <View style={styles.nexusInner}>
+            <Feather name="zap" size={20} color="#FFFFFF" />
+          </View>
+        </LinearGradient>
+      </Animated.View>
+      <ThemedText style={styles.nexusLabel}>CORE NEXUS</ThemedText>
+    </View>
+  );
+}
+
+function OrbitalRings() {
+  const rotation1 = useSharedValue(0);
+  const rotation2 = useSharedValue(0);
+
+  useEffect(() => {
+    rotation1.value = withRepeat(
+      withTiming(360, { duration: 30000, easing: Easing.linear }),
+      -1,
+      false
+    );
+    rotation2.value = withRepeat(
+      withTiming(-360, { duration: 45000, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
+
+  return (
+    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <RadialGradient id="nexusGlow" cx="50%" cy="50%" r="50%">
+          <Stop offset="0%" stopColor="#00FFFF" stopOpacity="0.4" />
+          <Stop offset="100%" stopColor="#00FFFF" stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      
+      <Circle
+        cx={CENTER_X}
+        cy={CENTER_Y}
+        r={NEXUS_SIZE}
+        fill="url(#nexusGlow)"
+      />
+
+      <Ellipse
+        cx={CENTER_X}
+        cy={CENTER_Y}
+        rx={INNER_RING_RADIUS}
+        ry={INNER_RING_RADIUS * 0.4}
+        stroke="rgba(0, 212, 255, 0.3)"
+        strokeWidth={2}
+        strokeDasharray="8,6"
+        fill="none"
+      />
+
+      <Ellipse
+        cx={CENTER_X}
+        cy={CENTER_Y}
+        rx={OUTER_RING_RADIUS}
+        ry={OUTER_RING_RADIUS * 0.4}
+        stroke="rgba(170, 102, 255, 0.25)"
+        strokeWidth={2}
+        strokeDasharray="10,8"
+        fill="none"
+      />
+
+      {BUILDING_SPOT_POSITIONS.map((pos, i) => (
+        <Line
+          key={`link-${i}`}
+          x1={CENTER_X}
+          y1={CENTER_Y}
+          x2={pos.x}
+          y2={pos.y}
+          stroke={`${BUILDING_COLORS[pos.buildingType]}33`}
+          strokeWidth={1}
+          strokeDasharray="4,4"
+        />
+      ))}
+
+      {BUILDING_SPOT_POSITIONS.map((pos, i) => (
+        <Circle
+          key={`node-${i}`}
+          cx={pos.x}
+          cy={pos.y}
+          r={3}
+          fill={BUILDING_COLORS[pos.buildingType]}
+          opacity={0.6}
+        />
+      ))}
+    </Svg>
+  );
+}
+
 interface BuildingSpotProps {
   position: BuildingSpotPosition;
   building?: Building;
@@ -103,8 +238,7 @@ interface BuildingSpotProps {
 
 function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
   const pulseAnim = useSharedValue(1);
-  const glowAnim = useSharedValue(0.4);
-  const ringAnim = useSharedValue(1);
+  const glowAnim = useSharedValue(0.3);
 
   const isEmpty = !building;
   const isConstructing = building?.isConstructing;
@@ -114,23 +248,18 @@ function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
   useEffect(() => {
     if (isEmpty) {
       pulseAnim.value = withRepeat(
-        withTiming(1.08, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.06, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
       glowAnim.value = withRepeat(
-        withTiming(0.7, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.5, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
     } else {
-      ringAnim.value = withRepeat(
-        withTiming(1.15, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
-      );
       glowAnim.value = withRepeat(
-        withTiming(0.6, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.7, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
@@ -143,7 +272,6 @@ function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
 
   const animatedGlowStyle = useAnimatedStyle(() => ({
     opacity: glowAnim.value,
-    transform: [{ scale: ringAnim.value }],
   }));
 
   return (
@@ -162,75 +290,38 @@ function BuildingSpot({ position, building, onPress }: BuildingSpotProps) {
     >
       <Animated.View 
         style={[
-          styles.buildingSpotRing, 
+          styles.buildingSpotGlow, 
           animatedGlowStyle, 
-          { borderColor: color, shadowColor: color }
+          { backgroundColor: color, shadowColor: color }
         ]} 
       />
-      <Animated.View style={[styles.buildingSpot, animatedSpotStyle]}>
-        <LinearGradient
-          colors={["rgba(20,30,50,0.9)", "rgba(10,15,25,0.95)"]}
-          style={styles.spotGradient}
-        >
-          {isEmpty ? (
-            <View style={[styles.emptySpot, { borderColor: color }]}>
-              <Feather name="plus" size={22} color={color} />
+      <Animated.View style={[styles.buildingSpot, animatedSpotStyle, { borderColor: `${color}66` }]}>
+        {isEmpty ? (
+          <View style={[styles.emptySpot, { borderColor: color }]}>
+            <Feather name="plus" size={20} color={color} />
+          </View>
+        ) : (
+          <View style={styles.buildingImageContainer}>
+            <Image
+              source={BUILDING_IMAGES[position.buildingType]}
+              style={styles.buildingImage}
+              resizeMode="cover"
+            />
+            <View style={[styles.levelBadge, { backgroundColor: color }]}>
+              <ThemedText style={styles.levelText}>{building.level}</ThemedText>
             </View>
-          ) : (
-            <View style={styles.buildingImageContainer}>
-              <Image
-                source={BUILDING_IMAGES[position.buildingType]}
-                style={styles.buildingImage}
-                resizeMode="cover"
-              />
-              <View style={[styles.levelBadge, { backgroundColor: color }]}>
-                <ThemedText style={styles.levelText}>{building.level}</ThemedText>
+            {isConstructing ? (
+              <View style={styles.constructingIndicator}>
+                <Feather name="loader" size={11} color={GameColors.warning} />
               </View>
-              {isConstructing ? (
-                <View style={styles.constructingIndicator}>
-                  <Feather name="loader" size={12} color={GameColors.warning} />
-                </View>
-              ) : null}
-            </View>
-          )}
-        </LinearGradient>
+            ) : null}
+          </View>
+        )}
       </Animated.View>
       <ThemedText style={styles.spotLabel} numberOfLines={1}>
-        {isEmpty ? definition.name : definition.name}
+        {definition.name}
       </ThemedText>
     </Pressable>
-  );
-}
-
-function ConnectionLines() {
-  return (
-    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-      {CONNECTION_LINES.map(([fromIdx, toIdx], i) => {
-        const from = BUILDING_SPOT_POSITIONS[fromIdx];
-        const to = BUILDING_SPOT_POSITIONS[toIdx];
-        return (
-          <Line
-            key={i}
-            x1={from.x}
-            y1={from.y}
-            x2={to.x}
-            y2={to.y}
-            stroke="rgba(0, 212, 255, 0.25)"
-            strokeWidth={2}
-            strokeDasharray="6,4"
-          />
-        );
-      })}
-      {BUILDING_SPOT_POSITIONS.map((pos, i) => (
-        <Circle
-          key={`node-${i}`}
-          cx={pos.x}
-          cy={pos.y}
-          r={4}
-          fill="rgba(0, 212, 255, 0.4)"
-        />
-      ))}
-    </Svg>
   );
 }
 
@@ -252,9 +343,9 @@ export function CityView({
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
-        <ThemedText style={styles.viewTitle}>Colony Base</ThemedText>
+        <ThemedText style={styles.viewTitle}>Orbital Colony</ThemedText>
         <ThemedText style={styles.viewSubtitle}>
-          Command center and core facilities
+          Floating platforms connected by gravity rings
         </ThemedText>
       </Animated.View>
 
@@ -262,7 +353,11 @@ export function CityView({
         <View style={styles.cityContainer}>
           <Image source={cityCenterBg} style={styles.cityImage} resizeMode="cover" />
           
-          <ConnectionLines />
+          <OrbitalRings />
+
+          <View style={styles.nexusWrapper}>
+            <CoreNexus />
+          </View>
 
           {BUILDING_SPOT_POSITIONS.map((position) => {
             const building = facilityBuildings.find(
@@ -284,15 +379,17 @@ export function CityView({
             );
           })}
         </View>
-        
-        <View style={styles.cityBorder} pointerEvents="none" />
       </View>
 
-      <View style={styles.infoBox}>
-        <Feather name="zap" size={14} color="#00D4FF" />
-        <ThemedText style={styles.infoText}>
-          Build and upgrade facilities to unlock new capabilities
-        </ThemedText>
+      <View style={styles.ringLegend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#00D4FF" }]} />
+          <ThemedText style={styles.legendText}>Inner Ring - Core Systems</ThemedText>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#AA66FF" }]} />
+          <ThemedText style={styles.legendText}>Outer Ring - Production</ThemedText>
+        </View>
       </View>
     </View>
   );
@@ -311,14 +408,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     fontFamily: "Orbitron_700Bold",
-    color: "#00D4FF",
+    color: "#00FFFF",
     textAlign: "center",
-    textShadowColor: "rgba(0, 212, 255, 0.5)",
+    textShadowColor: "rgba(0, 255, 255, 0.5)",
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadowRadius: 12,
   },
   viewSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
     color: GameColors.textSecondary,
     textAlign: "center",
@@ -330,52 +427,94 @@ const styles = StyleSheet.create({
   cityContainer: {
     width: CITY_SIZE,
     height: CITY_SIZE,
-    borderRadius: 16,
+    borderRadius: CITY_SIZE / 2,
     overflow: "hidden",
     position: "relative",
-  },
-  cityBorder: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "rgba(0, 212, 255, 0.3)",
   },
   cityImage: {
     width: "100%",
     height: "100%",
+    borderRadius: CITY_SIZE / 2,
+  },
+  nexusWrapper: {
+    position: "absolute",
+    left: CENTER_X - NEXUS_SIZE / 2,
+    top: CENTER_Y - NEXUS_SIZE / 2,
+  },
+  nexusContainer: {
+    width: NEXUS_SIZE,
+    height: NEXUS_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nexusGlow: {
+    position: "absolute",
+    width: NEXUS_SIZE * 1.8,
+    height: NEXUS_SIZE * 1.8,
+    borderRadius: NEXUS_SIZE,
+    backgroundColor: "rgba(0, 255, 255, 0.2)",
+    left: -NEXUS_SIZE * 0.4,
+    top: -NEXUS_SIZE * 0.4,
+  },
+  nexusCore: {
+    width: NEXUS_SIZE,
+    height: NEXUS_SIZE,
+    borderRadius: NEXUS_SIZE / 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  nexusGradient: {
+    flex: 1,
+    borderRadius: NEXUS_SIZE / 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nexusInner: {
+    width: NEXUS_SIZE - 10,
+    height: NEXUS_SIZE - 10,
+    borderRadius: (NEXUS_SIZE - 10) / 2,
+    backgroundColor: "rgba(0, 50, 80, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  nexusLabel: {
+    position: "absolute",
+    bottom: -18,
+    fontSize: 7,
+    fontFamily: "Orbitron_700Bold",
+    color: "#00FFFF",
+    letterSpacing: 1,
+    textShadowColor: "rgba(0, 0, 0, 0.9)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   buildingSpotContainer: {
     position: "absolute",
     width: BUILDING_SPOT_SIZE,
     alignItems: "center",
   },
-  buildingSpotRing: {
+  buildingSpotGlow: {
     position: "absolute",
-    width: BUILDING_SPOT_SIZE + 12,
-    height: BUILDING_SPOT_SIZE + 12,
-    borderRadius: (BUILDING_SPOT_SIZE + 12) / 2,
-    top: -6,
-    left: -6,
-    borderWidth: 2,
+    width: BUILDING_SPOT_SIZE + 16,
+    height: BUILDING_SPOT_SIZE + 16,
+    borderRadius: (BUILDING_SPOT_SIZE + 16) / 2,
+    top: -8,
+    left: -8,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
-    shadowRadius: 8,
+    shadowRadius: 12,
   },
   buildingSpot: {
     width: BUILDING_SPOT_SIZE,
     height: BUILDING_SPOT_SIZE,
     borderRadius: BUILDING_SPOT_SIZE / 2,
     overflow: "hidden",
+    backgroundColor: "rgba(10, 20, 35, 0.85)",
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  spotGradient: {
-    flex: 1,
-    borderRadius: BUILDING_SPOT_SIZE / 2,
   },
   emptySpot: {
     flex: 1,
@@ -396,60 +535,64 @@ const styles = StyleSheet.create({
   },
   levelBadge: {
     position: "absolute",
-    bottom: -3,
-    right: -3,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#0A0F14",
   },
   levelText: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: "Orbitron_700Bold",
     color: "#FFFFFF",
   },
   constructingIndicator: {
     position: "absolute",
-    top: -3,
-    right: -3,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    top: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.85)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: GameColors.warning,
   },
   spotLabel: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: "Orbitron_600SemiBold",
     color: GameColors.textPrimary,
     textAlign: "center",
-    marginTop: 6,
-    textShadowColor: "rgba(0,0,0,0.9)",
+    marginTop: 5,
+    textShadowColor: "rgba(0,0,0,0.95)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    maxWidth: BUILDING_SPOT_SIZE + 30,
-    letterSpacing: 0.5,
+    textShadowRadius: 4,
+    maxWidth: BUILDING_SPOT_SIZE + 24,
+    letterSpacing: 0.3,
   },
-  infoBox: {
+  ringLegend: {
+    flexDirection: "row",
+    gap: Spacing.lg,
+    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+  },
+  legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
-    backgroundColor: "rgba(0, 212, 255, 0.08)",
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: "rgba(0, 212, 255, 0.15)",
+    gap: Spacing.xs,
   },
-  infoText: {
-    fontSize: 11,
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 10,
     fontFamily: "Inter_400Regular",
     color: GameColors.textSecondary,
   },
