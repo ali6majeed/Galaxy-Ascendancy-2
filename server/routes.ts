@@ -7,6 +7,7 @@ import {
   calculateUpgradeCost,
   calculateConstructionTime,
   getBuildingDefinition,
+  getShipDefinition,
   initializeNewPlayer,
   processCompletedConstructions,
 } from "./gameLogic";
@@ -283,6 +284,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching available buildings:", error);
       res.status(500).json({ error: "Failed to fetch available buildings" });
+    }
+  });
+
+  app.get("/api/player/ships", async (req, res) => {
+    try {
+      await ensureDemoPlayer();
+      
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const planet = await storage.getPlanetByUserId(user.id);
+      if (!planet) {
+        return res.status(404).json({ error: "Planet not found" });
+      }
+
+      const ships = await storage.getShips(planet.id);
+      res.json(ships.map(s => ({
+        id: s.id,
+        shipType: s.shipType,
+        quantity: s.quantity,
+      })));
+    } catch (error) {
+      console.error("Error fetching ships:", error);
+      res.status(500).json({ error: "Failed to fetch ships" });
+    }
+  });
+
+  app.get("/api/player/ship-queue", async (req, res) => {
+    try {
+      await ensureDemoPlayer();
+      
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const planet = await storage.getPlanetByUserId(user.id);
+      if (!planet) {
+        return res.status(404).json({ error: "Planet not found" });
+      }
+
+      const queue = await storage.getShipQueue(planet.id);
+      res.json(queue.map(item => ({
+        id: item.id,
+        shipType: item.shipType,
+        quantity: item.quantity,
+        completesAt: item.completesAt.getTime(),
+      })));
+    } catch (error) {
+      console.error("Error fetching ship queue:", error);
+      res.status(500).json({ error: "Failed to fetch ship queue" });
+    }
+  });
+
+  app.post("/api/ships/build", async (req, res) => {
+    try {
+      await ensureDemoPlayer();
+      
+      const { shipType, quantity = 1 } = req.body;
+      
+      if (!shipType) {
+        return res.status(400).json({ error: "Ship type is required" });
+      }
+
+      const user = await storage.getUserByUsername("demo");
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const planet = await storage.getPlanetByUserId(user.id);
+      if (!planet) {
+        return res.status(404).json({ error: "Planet not found" });
+      }
+
+      const shipDef = getShipDefinition(shipType);
+      if (!shipDef) {
+        return res.status(400).json({ error: "Invalid ship type" });
+      }
+
+      const buildings = await storage.getBuildings(planet.id);
+      const shipyard = buildings.find(b => b.buildingType === "shipyard");
+      
+      if (!shipyard || shipyard.level < shipDef.requiredShipyardLevel) {
+        return res.status(400).json({ 
+          error: `Requires Shipyard level ${shipDef.requiredShipyardLevel}` 
+        });
+      }
+
+      const totalCost = {
+        metal: shipDef.baseCost.metal * quantity,
+        crystal: shipDef.baseCost.crystal * quantity,
+        oxygen: shipDef.baseCost.oxygen * quantity,
+      };
+
+      const updatedPlanet = await updatePlanetResources(planet.id);
+
+      if (
+        updatedPlanet.metal < totalCost.metal ||
+        updatedPlanet.crystal < totalCost.crystal ||
+        updatedPlanet.oxygen < totalCost.oxygen
+      ) {
+        return res.status(400).json({ error: "Insufficient resources" });
+      }
+
+      await storage.updatePlanetResources(planet.id, {
+        metal: updatedPlanet.metal - totalCost.metal,
+        crystal: updatedPlanet.crystal - totalCost.crystal,
+        oxygen: updatedPlanet.oxygen - totalCost.oxygen,
+        lastResourceUpdate: new Date(),
+      });
+
+      const buildTime = shipDef.buildTime * quantity;
+      const completesAt = new Date(Date.now() + buildTime * 1000);
+
+      const queueItem = await storage.addToShipQueue({
+        planetId: planet.id,
+        shipType,
+        quantity,
+        completesAt,
+      });
+
+      res.json({
+        success: true,
+        queueItem: {
+          id: queueItem.id,
+          shipType,
+          quantity,
+          completesAt: completesAt.getTime(),
+        },
+      });
+    } catch (error) {
+      console.error("Error building ship:", error);
+      res.status(500).json({ error: "Failed to build ship" });
     }
   });
 

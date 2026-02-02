@@ -275,3 +275,106 @@ export function formatNumber(num: number): string {
   }
   return num.toString();
 }
+
+export const SHIP_TYPES = {
+  FIGHTER: "fighter",
+  BOMBER: "bomber",
+  CRUISER: "cruiser",
+  BATTLESHIP: "battleship",
+  CARRIER: "carrier",
+  TRANSPORT: "transport",
+} as const;
+
+export type ShipType = (typeof SHIP_TYPES)[keyof typeof SHIP_TYPES];
+
+export interface ShipDefinition {
+  id: ShipType;
+  name: string;
+  description: string;
+  attack: number;
+  defense: number;
+  speed: number;
+  cargo: number;
+  baseCost: {
+    metal: number;
+    crystal: number;
+    oxygen: number;
+  };
+  buildTime: number;
+  requiredShipyardLevel: number;
+}
+
+export const SHIP_DEFINITIONS: Record<ShipType, ShipDefinition> = {
+  [SHIP_TYPES.FIGHTER]: {
+    id: SHIP_TYPES.FIGHTER,
+    name: "Fighter",
+    description: "Fast and agile combat craft. Effective in swarms against larger vessels.",
+    attack: 50,
+    defense: 20,
+    speed: 150,
+    cargo: 10,
+    baseCost: { metal: 300, crystal: 100, oxygen: 50 },
+    buildTime: 120,
+    requiredShipyardLevel: 1,
+  },
+  [SHIP_TYPES.BOMBER]: {
+    id: SHIP_TYPES.BOMBER,
+    name: "Bomber",
+    description: "Heavy ordnance delivery craft. Devastating against structures and slow targets.",
+    attack: 100,
+    defense: 30,
+    speed: 80,
+    cargo: 20,
+    baseCost: { metal: 500, crystal: 200, oxygen: 100 },
+    buildTime: 180,
+    requiredShipyardLevel: 2,
+  },
+  [SHIP_TYPES.CRUISER]: {
+    id: SHIP_TYPES.CRUISER,
+    name: "Cruiser",
+    description: "Balanced warship with good firepower and armor. The backbone of any fleet.",
+    attack: 150,
+    defense: 100,
+    speed: 100,
+    cargo: 50,
+    baseCost: { metal: 1000, crystal: 500, oxygen: 250 },
+    buildTime: 300,
+    requiredShipyardLevel: 3,
+  },
+  [SHIP_TYPES.BATTLESHIP]: {
+    id: SHIP_TYPES.BATTLESHIP,
+    name: "Battleship",
+    description: "Massive capital ship with devastating firepower. Slow but nearly unstoppable.",
+    attack: 400,
+    defense: 300,
+    speed: 50,
+    cargo: 100,
+    baseCost: { metal: 3000, crystal: 1500, oxygen: 750 },
+    buildTime: 600,
+    requiredShipyardLevel: 5,
+  },
+  [SHIP_TYPES.CARRIER]: {
+    id: SHIP_TYPES.CARRIER,
+    name: "Carrier",
+    description: "Mobile base for fighters and bombers. Extends your fleet's operational range.",
+    attack: 50,
+    defense: 400,
+    speed: 40,
+    cargo: 500,
+    baseCost: { metal: 4000, crystal: 2000, oxygen: 1000 },
+    buildTime: 900,
+    requiredShipyardLevel: 6,
+  },
+  [SHIP_TYPES.TRANSPORT]: {
+    id: SHIP_TYPES.TRANSPORT,
+    name: "Transport",
+    description: "Cargo vessel for resource hauling and troop deployment. Essential for expansion.",
+    attack: 5,
+    defense: 50,
+    speed: 70,
+    cargo: 1000,
+    baseCost: { metal: 600, crystal: 200, oxygen: 300 },
+    buildTime: 150,
+    requiredShipyardLevel: 1,
+  },
+};

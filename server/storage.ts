@@ -3,6 +3,8 @@ import {
   planets,
   buildings,
   constructionQueue,
+  ships,
+  shipQueue,
   type User,
   type InsertUser,
   type Planet,
@@ -11,6 +13,10 @@ import {
   type InsertBuilding,
   type Construction,
   type InsertConstruction,
+  type Ship,
+  type InsertShip,
+  type ShipQueueItem,
+  type InsertShipQueue,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, lte } from "drizzle-orm";
@@ -36,6 +42,16 @@ export interface IStorage {
   getCompletedConstructions(): Promise<Construction[]>;
   addToConstructionQueue(construction: InsertConstruction): Promise<Construction>;
   removeFromQueue(id: string): Promise<void>;
+  
+  getShips(planetId: string): Promise<Ship[]>;
+  getShipByType(planetId: string, shipType: string): Promise<Ship | undefined>;
+  createShip(ship: InsertShip): Promise<Ship>;
+  updateShipQuantity(id: string, quantity: number): Promise<Ship>;
+  
+  getShipQueue(planetId: string): Promise<ShipQueueItem[]>;
+  getCompletedShipBuilds(): Promise<ShipQueueItem[]>;
+  addToShipQueue(item: InsertShipQueue): Promise<ShipQueueItem>;
+  removeFromShipQueue(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -143,6 +159,56 @@ export class DatabaseStorage implements IStorage {
 
   async removeFromQueue(id: string): Promise<void> {
     await db.delete(constructionQueue).where(eq(constructionQueue.id, id));
+  }
+
+  async getShips(planetId: string): Promise<Ship[]> {
+    return db.select().from(ships).where(eq(ships.planetId, planetId));
+  }
+
+  async getShipByType(planetId: string, shipType: string): Promise<Ship | undefined> {
+    const [ship] = await db
+      .select()
+      .from(ships)
+      .where(and(eq(ships.planetId, planetId), eq(ships.shipType, shipType)));
+    return ship || undefined;
+  }
+
+  async createShip(insertShip: InsertShip): Promise<Ship> {
+    const [ship] = await db.insert(ships).values(insertShip).returning();
+    return ship;
+  }
+
+  async updateShipQuantity(id: string, quantity: number): Promise<Ship> {
+    const [ship] = await db
+      .update(ships)
+      .set({ quantity })
+      .where(eq(ships.id, id))
+      .returning();
+    return ship;
+  }
+
+  async getShipQueue(planetId: string): Promise<ShipQueueItem[]> {
+    return db
+      .select()
+      .from(shipQueue)
+      .where(eq(shipQueue.planetId, planetId))
+      .orderBy(asc(shipQueue.startedAt));
+  }
+
+  async getCompletedShipBuilds(): Promise<ShipQueueItem[]> {
+    return db
+      .select()
+      .from(shipQueue)
+      .where(lte(shipQueue.completesAt, new Date()));
+  }
+
+  async addToShipQueue(item: InsertShipQueue): Promise<ShipQueueItem> {
+    const [queueItem] = await db.insert(shipQueue).values(item).returning();
+    return queueItem;
+  }
+
+  async removeFromShipQueue(id: string): Promise<void> {
+    await db.delete(shipQueue).where(eq(shipQueue.id, id));
   }
 }
 

@@ -98,6 +98,45 @@ export const constructionQueueRelations = relations(constructionQueue, ({ one })
   }),
 }));
 
+export const ships = pgTable("ships", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  planetId: varchar("planet_id")
+    .references(() => planets.id)
+    .notNull(),
+  shipType: text("ship_type").notNull(),
+  quantity: integer("quantity").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const shipQueue = pgTable("ship_queue", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  planetId: varchar("planet_id")
+    .references(() => planets.id)
+    .notNull(),
+  shipType: text("ship_type").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completesAt: timestamp("completes_at").notNull(),
+});
+
+export const shipsRelations = relations(ships, ({ one }) => ({
+  planet: one(planets, {
+    fields: [ships.planetId],
+    references: [planets.id],
+  }),
+}));
+
+export const shipQueueRelations = relations(shipQueue, ({ one }) => ({
+  planet: one(planets, {
+    fields: [shipQueue.planetId],
+    references: [planets.id],
+  }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -124,6 +163,19 @@ export const insertConstructionSchema = createInsertSchema(constructionQueue).pi
   position: true,
 });
 
+export const insertShipSchema = createInsertSchema(ships).pick({
+  planetId: true,
+  shipType: true,
+  quantity: true,
+});
+
+export const insertShipQueueSchema = createInsertSchema(shipQueue).pick({
+  planetId: true,
+  shipType: true,
+  quantity: true,
+  completesAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertPlanet = z.infer<typeof insertPlanetSchema>;
@@ -132,3 +184,7 @@ export type InsertBuilding = z.infer<typeof insertBuildingSchema>;
 export type Building = typeof buildings.$inferSelect;
 export type InsertConstruction = z.infer<typeof insertConstructionSchema>;
 export type Construction = typeof constructionQueue.$inferSelect;
+export type InsertShip = z.infer<typeof insertShipSchema>;
+export type Ship = typeof ships.$inferSelect;
+export type InsertShipQueue = z.infer<typeof insertShipQueueSchema>;
+export type ShipQueueItem = typeof shipQueue.$inferSelect;

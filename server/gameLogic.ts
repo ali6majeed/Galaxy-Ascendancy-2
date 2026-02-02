@@ -157,6 +157,102 @@ export function getAllBuildingTypes(): string[] {
   return Object.keys(BUILDING_DEFINITIONS);
 }
 
+interface ShipDefinition {
+  id: string;
+  name: string;
+  description: string;
+  attack: number;
+  defense: number;
+  speed: number;
+  cargo: number;
+  baseCost: { metal: number; crystal: number; oxygen: number };
+  buildTime: number;
+  requiredShipyardLevel: number;
+}
+
+const SHIP_DEFINITIONS: Record<string, ShipDefinition> = {
+  fighter: {
+    id: "fighter",
+    name: "Fighter",
+    description: "Fast and agile combat craft.",
+    attack: 50,
+    defense: 20,
+    speed: 150,
+    cargo: 10,
+    baseCost: { metal: 300, crystal: 100, oxygen: 50 },
+    buildTime: 120,
+    requiredShipyardLevel: 1,
+  },
+  bomber: {
+    id: "bomber",
+    name: "Bomber",
+    description: "Heavy ordnance delivery craft.",
+    attack: 100,
+    defense: 30,
+    speed: 80,
+    cargo: 20,
+    baseCost: { metal: 500, crystal: 200, oxygen: 100 },
+    buildTime: 180,
+    requiredShipyardLevel: 2,
+  },
+  cruiser: {
+    id: "cruiser",
+    name: "Cruiser",
+    description: "Balanced warship with good firepower and armor.",
+    attack: 150,
+    defense: 100,
+    speed: 100,
+    cargo: 50,
+    baseCost: { metal: 1000, crystal: 500, oxygen: 250 },
+    buildTime: 300,
+    requiredShipyardLevel: 3,
+  },
+  battleship: {
+    id: "battleship",
+    name: "Battleship",
+    description: "Massive capital ship with devastating firepower.",
+    attack: 400,
+    defense: 300,
+    speed: 50,
+    cargo: 100,
+    baseCost: { metal: 3000, crystal: 1500, oxygen: 750 },
+    buildTime: 600,
+    requiredShipyardLevel: 5,
+  },
+  carrier: {
+    id: "carrier",
+    name: "Carrier",
+    description: "Mobile base for fighters and bombers.",
+    attack: 50,
+    defense: 400,
+    speed: 40,
+    cargo: 500,
+    baseCost: { metal: 4000, crystal: 2000, oxygen: 1000 },
+    buildTime: 900,
+    requiredShipyardLevel: 6,
+  },
+  transport: {
+    id: "transport",
+    name: "Transport",
+    description: "Cargo vessel for resource hauling.",
+    attack: 5,
+    defense: 50,
+    speed: 70,
+    cargo: 1000,
+    baseCost: { metal: 600, crystal: 200, oxygen: 300 },
+    buildTime: 150,
+    requiredShipyardLevel: 1,
+  },
+};
+
+export function getShipDefinition(shipType: string): ShipDefinition | undefined {
+  return SHIP_DEFINITIONS[shipType];
+}
+
+export function getAllShipTypes(): string[] {
+  return Object.keys(SHIP_DEFINITIONS);
+}
+
 export async function calculateResourceRates(planetId: string): Promise<{
   metalRate: number;
   crystalRate: number;
@@ -268,6 +364,24 @@ export async function processCompletedConstructions(): Promise<void> {
     }
     
     await storage.removeFromQueue(construction.id);
+  }
+
+  const completedShips = await storage.getCompletedShipBuilds();
+  
+  for (const shipBuild of completedShips) {
+    const existingShip = await storage.getShipByType(shipBuild.planetId, shipBuild.shipType);
+    
+    if (existingShip) {
+      await storage.updateShipQuantity(existingShip.id, existingShip.quantity + shipBuild.quantity);
+    } else {
+      await storage.createShip({
+        planetId: shipBuild.planetId,
+        shipType: shipBuild.shipType,
+        quantity: shipBuild.quantity,
+      });
+    }
+    
+    await storage.removeFromShipQueue(shipBuild.id);
   }
 }
 
