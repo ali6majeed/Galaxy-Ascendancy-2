@@ -26,8 +26,8 @@ The client follows a screen-based architecture with:
 
 ### Planet View Navigation
 The Planet screen uses a zoom-based navigation system:
-- **Zoomed-out view**: Shows planet with animated resource bubbles (Metal, Crystal, Oxygen) orbiting, displaying production rates. A clickable "ENTER CITY" button in the center allows access to buildings.
-- **City view**: Visual map layout with buildings positioned spatially like a city. Buildings are color-coded by type and displayed as icons that can be tapped to upgrade or construct. Empty slots show dashed outlines with plus icons. Upgradeable buildings have a pulsing glow animation. A legend at the bottom shows building type colors. A "Back to Planet" button returns to the zoomed-out view.
+- **Planet Overview (zoomed-out)**: Shows the planet with all resource fields (Metal Mines, Crystal Refineries, Oxygen Processors, Energy Plants) arranged around it. Each field is tappable to build or upgrade. Resource production rates are displayed at the top. A "CITY CENTER" button in the center provides access to core facilities.
+- **City Center**: Shows only core facilities (Research Lab, Fleet Dock) as large cards. An info box reminds players that resource fields are on the planet view. A "Back to Planet" button returns to the planet overview.
 
 ### Multi-Building Slot System
 Players can build multiple instances of resource buildings:
