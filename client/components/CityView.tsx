@@ -206,23 +206,18 @@ export function CityView({
             (b) => b.buildingType === position.buildingType
           );
           return (
-            <Animated.View
+            <BuildingSpot
               key={position.buildingType}
-              entering={FadeIn.delay(200 + index * 100).duration(400)}
-              style={StyleSheet.absoluteFill}
-            >
-              <BuildingSpot
-                position={position}
-                building={building}
-                onPress={() => {
-                  if (building) {
-                    onBuildingPress(building);
-                  } else {
-                    onEmptySlotPress(position.buildingType, 0);
-                  }
-                }}
-              />
-            </Animated.View>
+              position={position}
+              building={building}
+              onPress={() => {
+                if (building) {
+                  onBuildingPress(building);
+                } else {
+                  onEmptySlotPress(position.buildingType, 0);
+                }
+              }}
+            />
           );
         })}
       </View>
