@@ -205,6 +205,7 @@ function ResourceField({ position, building, onPress }: ResourceFieldProps) {
           top: position.y - FIELD_SIZE / 2,
         },
       ]}
+      testID={`resource-slot-${position.buildingType}-${position.slotIndex}`}
     >
       {canUpgrade ? (
         <Animated.View style={[styles.fieldGlow, glowStyle, { backgroundColor: color }]} />
